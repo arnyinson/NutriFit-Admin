@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, RefreshCw, Star } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 
 type Meal = {
@@ -10,24 +11,23 @@ type Meal = {
   protein: number;
   carbs: number;
   fats: number;
-  image: string;
 };
 
 const initialMeals: Meal[] = [
-  { id: 1, name: 'Chicken Adobo', category: 'Protein', calories: 600, allergens: ['Soy', 'Gluten'], protein: 36, carbs: 30, fats: 25, image: '🍗' },
-  { id: 2, name: 'Pinakbet', category: 'Vegetable', calories: 200, allergens: [], protein: 8, carbs: 25, fats: 10, image: '🥦' },
-  { id: 3, name: 'Tapsilog', category: 'Protein', calories: 750, allergens: ['Egg'], protein: 40, carbs: 65, fats: 22, image: '🍳' },
-  { id: 4, name: 'Sinigang na Baboy', category: 'Protein', calories: 480, allergens: [], protein: 32, carbs: 35, fats: 18, image: '🍲' },
-  { id: 5, name: 'Coconut Shake', category: 'Carbs', calories: 350, allergens: ['Dairy'], protein: 5, carbs: 60, fats: 12, image: '🥤' },
-  { id: 6, name: 'Ginisang Munggo', category: 'Protein', calories: 280, allergens: [], protein: 15, carbs: 35, fats: 8, image: '🫘' },
-  { id: 7, name: 'Champorado', category: 'Carbs', calories: 320, allergens: ['Dairy'], protein: 8, carbs: 58, fats: 10, image: '🍫' },
+  { id: 1, name: 'Chicken Adobo', category: 'Protein', calories: 600, allergens: ['Soy', 'Gluten'], protein: 36, carbs: 30, fats: 25 },
+  { id: 2, name: 'Pinakbet', category: 'Vegetable', calories: 200, allergens: [], protein: 8, carbs: 25, fats: 10 },
+  { id: 3, name: 'Tapsilog', category: 'Protein', calories: 750, allergens: ['Egg'], protein: 40, carbs: 65, fats: 22 },
+  { id: 4, name: 'Sinigang na Baboy', category: 'Protein', calories: 480, allergens: [], protein: 32, carbs: 35, fats: 18 },
+  { id: 5, name: 'Coconut Shake', category: 'Carbs', calories: 350, allergens: ['Dairy'], protein: 5, carbs: 60, fats: 12 },
+  { id: 6, name: 'Ginisang Munggo', category: 'Protein', calories: 280, allergens: [], protein: 15, carbs: 35, fats: 8 },
+  { id: 7, name: 'Champorado', category: 'Carbs', calories: 320, allergens: ['Dairy'], protein: 8, carbs: 58, fats: 10 },
 ];
 
 const stats = [
-  { label: 'Total Meals', value: '248', icon: '🍽️', color: 'text-orange-500', bg: 'bg-orange-50', change: '+10 this week' },
-  { label: 'Active Templates', value: '18', icon: '📋', color: 'text-blue-500', bg: 'bg-blue-50', change: '+3 this week' },
-  { label: 'Substitution', value: '56', icon: '🔄', color: 'text-green-500', bg: 'bg-green-50', change: '+14 this week' },
-  { label: 'Popular Meal', value: 'Chicken Adobo', icon: '⭐', color: 'text-yellow-500', bg: 'bg-yellow-50', change: 'Used 1,240 times' },
+  { label: 'Total Meals', value: '248', Icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50', change: '+10 this week' },
+  { label: 'Active Templates', value: '18', Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50', change: '+3 this week' },
+  { label: 'Substitution', value: '56', Icon: RefreshCw, color: 'text-green-500', bg: 'bg-green-50', change: '+14 this week' },
+  { label: 'Popular Meal', value: 'Chicken Adobo', Icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-50', change: 'Used 1,240 times' },
 ];
 
 export default function MealPlan() {
@@ -58,7 +58,6 @@ export default function MealPlan() {
       protein: Number(newMeal.protein),
       carbs: Number(newMeal.carbs),
       fats: Number(newMeal.fats),
-      image: '🍽️',
     };
     setMeals(prev => [...prev, meal]);
     setNewMeal({ name: '', category: 'Protein', calories: '', protein: '', carbs: '', fats: '', allergens: '' });
@@ -98,8 +97,8 @@ export default function MealPlan() {
           {stats.map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 mb-2">
-                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center text-2xl`}>
-                  {stat.icon}
+                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
+                  <stat.Icon size={22} className={stat.color} />
                 </div>
                 <div>
                   <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -121,7 +120,7 @@ export default function MealPlan() {
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
-                <span className="text-gray-400 text-sm">🔍</span>
+                <Search size={16} className="text-gray-400" />
                 <input
                   className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-48"
                   placeholder="Search meal name..."
@@ -143,7 +142,7 @@ export default function MealPlan() {
                 onClick={() => setShowAddModal(true)}
                 className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
               >
-                + Add new meal
+                <Plus size={16} /> Add new meal
               </button>
             </div>
           </div>
@@ -163,8 +162,8 @@ export default function MealPlan() {
                 <tr key={meal.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-xl">
-                        {meal.image}
+                      <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                        <Utensils size={18} className="text-orange-500" />
                       </div>
                       <span className="text-sm font-medium text-gray-700">{meal.name}</span>
                     </div>
@@ -197,15 +196,15 @@ export default function MealPlan() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEdit(meal)}
-                        className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors text-sm"
+                        className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
                       >
-                        ✏️
+                        <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(meal.id)}
-                        className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors text-sm"
+                        className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
                       >
-                        🗑️
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -229,7 +228,9 @@ export default function MealPlan() {
           <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Add New Meal</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
             <div className="flex flex-col gap-4">
               <div>
@@ -331,7 +332,9 @@ export default function MealPlan() {
           <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Edit Meal</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
             <div className="flex flex-col gap-4">
               <div>

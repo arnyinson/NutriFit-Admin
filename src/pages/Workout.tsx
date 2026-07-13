@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  Search, Plus, Eye, Pencil, Trash2, X, Play,
+  Dumbbell, ClipboardList, Activity, Star,
+} from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 
 type Exercise = {
@@ -8,24 +12,23 @@ type Exercise = {
   equipment: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   instructions: string;
-  image: string;
 };
 
 const initialExercises: Exercise[] = [
-  { id: 1, name: 'Bench Press', muscleGroup: 'Chest', equipment: 'Barbell', difficulty: 'Intermediate', instructions: '1. Lie on bench\n2. Lower the bar\n3. Push the bar back up', image: '🏋️' },
-  { id: 2, name: 'Squats', muscleGroup: 'Legs', equipment: 'Barbell', difficulty: 'Intermediate', instructions: '1. Stand with feet shoulder-width\n2. Lower hips\n3. Push through heels', image: '🦵' },
-  { id: 3, name: 'Pull Ups', muscleGroup: 'Lats', equipment: 'Bodyweight', difficulty: 'Intermediate', instructions: '1. Hang from bar\n2. Pull chest to bar\n3. Lower slowly', image: '💪' },
-  { id: 4, name: 'Shoulder Press', muscleGroup: 'Triceps', equipment: 'Dumbbell', difficulty: 'Beginner', instructions: '1. Hold dumbbells at shoulders\n2. Press overhead\n3. Lower slowly', image: '🏋️' },
-  { id: 5, name: 'Bicep Curl', muscleGroup: 'Bicep', equipment: 'Dumbbell', difficulty: 'Beginner', instructions: '1. Hold dumbbells at sides\n2. Curl to shoulders\n3. Lower slowly', image: '💪' },
-  { id: 6, name: 'Leg Press', muscleGroup: 'Legs', equipment: '45-Degree/Incline Leg Press', difficulty: 'Beginner', instructions: '1. Sit in machine\n2. Push platform away\n3. Return slowly', image: '🦵' },
-  { id: 7, name: 'Deadlift', muscleGroup: 'Glutes', equipment: 'Barbell', difficulty: 'Advanced', instructions: '1. Stand with feet hip-width\n2. Bend and grip bar\n3. Drive hips forward', image: '🏋️' },
+  { id: 1, name: 'Bench Press', muscleGroup: 'Chest', equipment: 'Barbell', difficulty: 'Intermediate', instructions: '1. Lie on bench\n2. Lower the bar\n3. Push the bar back up' },
+  { id: 2, name: 'Squats', muscleGroup: 'Legs', equipment: 'Barbell', difficulty: 'Intermediate', instructions: '1. Stand with feet shoulder-width\n2. Lower hips\n3. Push through heels' },
+  { id: 3, name: 'Pull Ups', muscleGroup: 'Lats', equipment: 'Bodyweight', difficulty: 'Intermediate', instructions: '1. Hang from bar\n2. Pull chest to bar\n3. Lower slowly' },
+  { id: 4, name: 'Shoulder Press', muscleGroup: 'Triceps', equipment: 'Dumbbell', difficulty: 'Beginner', instructions: '1. Hold dumbbells at shoulders\n2. Press overhead\n3. Lower slowly' },
+  { id: 5, name: 'Bicep Curl', muscleGroup: 'Bicep', equipment: 'Dumbbell', difficulty: 'Beginner', instructions: '1. Hold dumbbells at sides\n2. Curl to shoulders\n3. Lower slowly' },
+  { id: 6, name: 'Leg Press', muscleGroup: 'Legs', equipment: '45-Degree/Incline Leg Press', difficulty: 'Beginner', instructions: '1. Sit in machine\n2. Push platform away\n3. Return slowly' },
+  { id: 7, name: 'Deadlift', muscleGroup: 'Glutes', equipment: 'Barbell', difficulty: 'Advanced', instructions: '1. Stand with feet hip-width\n2. Bend and grip bar\n3. Drive hips forward' },
 ];
 
 const stats = [
-  { label: 'Total Exercise', value: '128', icon: '💪', color: 'text-green-500', bg: 'bg-green-50', change: '+10 this week' },
-  { label: 'Workout Templates', value: '24', icon: '📋', color: 'text-blue-500', bg: 'bg-blue-50', change: 'Active' },
-  { label: 'Muscle Groups', value: '8', icon: '🏃', color: 'text-orange-500', bg: 'bg-orange-50', change: 'Categories' },
-  { label: 'Most Used Exercise', value: 'Squats', icon: '⭐', color: 'text-yellow-500', bg: 'bg-yellow-50', change: 'Top exercise' },
+  { label: 'Total Exercise', value: '128', Icon: Dumbbell, color: 'text-green-500', bg: 'bg-green-50', change: '+10 this week' },
+  { label: 'Workout Templates', value: '24', Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50', change: 'Active' },
+  { label: 'Muscle Groups', value: '8', Icon: Activity, color: 'text-orange-500', bg: 'bg-orange-50', change: 'Categories' },
+  { label: 'Most Used Exercise', value: 'Squats', Icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-50', change: 'Top exercise' },
 ];
 
 const muscleGroups = [
@@ -66,7 +69,6 @@ export default function Workout() {
       equipment: newExercise.equipment,
       difficulty: newExercise.difficulty,
       instructions: newExercise.instructions,
-      image: '💪',
     };
     setExercises(prev => [...prev, exercise]);
     setNewExercise({ name: '', muscleGroup: 'Chest', equipment: 'Barbell', difficulty: 'Beginner', instructions: '' });
@@ -107,8 +109,8 @@ export default function Workout() {
           {stats.map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 mb-2">
-                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center text-2xl`}>
-                  {stat.icon}
+                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
+                  <stat.Icon size={22} className={stat.color} />
                 </div>
                 <div>
                   <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -128,7 +130,7 @@ export default function Workout() {
               <h2 className="text-base font-bold text-gray-800">Exercise</h2>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
-                  <span className="text-gray-400 text-sm">🔍</span>
+                  <Search size={16} className="text-gray-400" />
                   <input
                     className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-36"
                     placeholder="Search exercises..."
@@ -161,9 +163,9 @@ export default function Workout() {
                 </select>
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
                 >
-                  + Add new exercise
+                  <Plus size={16} /> Add new exercise
                 </button>
               </div>
             </div>
@@ -183,8 +185,8 @@ export default function Workout() {
                   <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-xl">
-                          {exercise.image}
+                        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                          <Dumbbell size={18} className="text-green-600" />
                         </div>
                         <span className="text-sm font-medium text-gray-700">{exercise.name}</span>
                       </div>
@@ -195,21 +197,21 @@ export default function Workout() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => { setSelectedExercise(exercise); setShowDetailModal(true); }}
-                          className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors text-sm"
+                          className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
                         >
-                          👁️
+                          <Eye size={16} />
                         </button>
                         <button
                           onClick={() => { setSelectedExercise(exercise); setShowEditModal(true); }}
-                          className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors text-sm"
+                          className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
                         >
-                          ✏️
+                          <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(exercise.id)}
-                          className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors text-sm"
+                          className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -254,7 +256,9 @@ export default function Workout() {
           <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Add New Exercise</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
             <div className="flex flex-col gap-4">
               <div>
@@ -322,8 +326,9 @@ export default function Workout() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Upload Video</label>
-                <div className="w-full border-2 border-dashed border-gray-200 rounded-xl px-4 py-6 text-center text-gray-400 text-sm cursor-pointer hover:border-green-400 transition-colors">
-                  📹 Click to upload video
+                <div className="w-full border-2 border-dashed border-gray-200 rounded-xl px-4 py-6 flex flex-col items-center gap-2 text-gray-400 text-sm cursor-pointer hover:border-green-400 transition-colors">
+                  <Play size={22} />
+                  Click to upload video
                 </div>
               </div>
               <div className="flex gap-3 mt-2">
@@ -351,7 +356,9 @@ export default function Workout() {
           <div className="bg-white rounded-2xl p-8 w-[420px] shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">{selectedExercise.name}</h2>
-              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
@@ -375,7 +382,9 @@ export default function Workout() {
                 <p className="text-sm text-gray-700 whitespace-pre-line">{selectedExercise.instructions}</p>
               </div>
               <div className="bg-gray-900 rounded-xl p-8 flex flex-col items-center justify-center text-white gap-2">
-                <span className="text-4xl">▶️</span>
+                <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
+                  <Play size={26} fill="white" />
+                </div>
                 <p className="text-sm font-medium">Video Demonstration</p>
                 <p className="text-xs text-gray-400">Available in full version</p>
               </div>
@@ -396,7 +405,9 @@ export default function Workout() {
           <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Edit Exercise</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
             <div className="flex flex-col gap-4">
               <div>

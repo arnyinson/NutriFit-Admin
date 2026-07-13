@@ -1,12 +1,12 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Users, Utensils, BarChart3, AlertTriangle, ArrowRight } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 
 const stats = [
-  { label: 'Total User', value: '12,450', icon: '👤', color: 'text-green-500', bg: 'bg-green-50', change: '+12%' },
-  { label: 'Active Meal Plans', value: '8,352', icon: '🍽️', color: 'text-orange-500', bg: 'bg-orange-50', change: '+3 this week' },
-  { label: 'Weekly Reports', value: '4,570', icon: '📊', color: 'text-blue-500', bg: 'bg-blue-50', change: '+8%' },
-  { label: 'Allergy Cases', value: '246', icon: '⚠️', color: 'text-red-500', bg: 'bg-red-50', change: '+14 this week' },
+  { label: 'Total User', value: '12,450', Icon: Users, color: 'text-green-500', bg: 'bg-green-50', change: '+12%' },
+  { label: 'Active Meal Plans', value: '8,352', Icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50', change: '+3 this week' },
+  { label: 'Weekly Reports', value: '4,570', Icon: BarChart3, color: 'text-blue-500', bg: 'bg-blue-50', change: '+8%' },
+  { label: 'Allergy Cases', value: '246', Icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50', change: '+14 this week' },
 ];
 
 const recentUsers = [
@@ -49,8 +49,8 @@ export default function Dashboard() {
           {stats.map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center text-2xl`}>
-                  {stat.icon}
+                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
+                  <stat.Icon size={22} className={stat.color} />
                 </div>
                 <div>
                   <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -111,9 +111,9 @@ export default function Dashboard() {
             <h2 className="text-base font-bold text-gray-800">Recent Users</h2>
             <button
               onClick={() => navigate('/users')}
-              className="text-xs text-green-500 font-semibold hover:underline"
+              className="flex items-center gap-1 text-xs text-green-500 font-semibold hover:underline"
             >
-              View all →
+              View all <ArrowRight size={12} />
             </button>
           </div>
           <table className="w-full">
