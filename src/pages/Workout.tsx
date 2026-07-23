@@ -1,46 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Search, Plus, Eye, Pencil, Trash2, X, Play,
   Dumbbell, ClipboardList, Activity, Star,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import api from '../config/api';
 
 type Exercise = {
-  id: number;
+  id: string;
   name: string;
-  muscleGroup: string;
+  muscle_group: string;
   equipment: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   instructions: string;
+  video_url: string | null;
 };
 
-const initialExercises: Exercise[] = [
-  { id: 1, name: 'Bench Press', muscleGroup: 'Chest', equipment: 'Barbell', difficulty: 'Intermediate', instructions: '1. Lie on bench\n2. Lower the bar\n3. Push the bar back up' },
-  { id: 2, name: 'Squats', muscleGroup: 'Legs', equipment: 'Barbell', difficulty: 'Intermediate', instructions: '1. Stand with feet shoulder-width\n2. Lower hips\n3. Push through heels' },
-  { id: 3, name: 'Pull Ups', muscleGroup: 'Lats', equipment: 'Bodyweight', difficulty: 'Intermediate', instructions: '1. Hang from bar\n2. Pull chest to bar\n3. Lower slowly' },
-  { id: 4, name: 'Shoulder Press', muscleGroup: 'Triceps', equipment: 'Dumbbell', difficulty: 'Beginner', instructions: '1. Hold dumbbells at shoulders\n2. Press overhead\n3. Lower slowly' },
-  { id: 5, name: 'Bicep Curl', muscleGroup: 'Bicep', equipment: 'Dumbbell', difficulty: 'Beginner', instructions: '1. Hold dumbbells at sides\n2. Curl to shoulders\n3. Lower slowly' },
-  { id: 6, name: 'Leg Press', muscleGroup: 'Legs', equipment: '45-Degree/Incline Leg Press', difficulty: 'Beginner', instructions: '1. Sit in machine\n2. Push platform away\n3. Return slowly' },
-  { id: 7, name: 'Deadlift', muscleGroup: 'Glutes', equipment: 'Barbell', difficulty: 'Advanced', instructions: '1. Stand with feet hip-width\n2. Bend and grip bar\n3. Drive hips forward' },
-];
-
-const stats = [
-  { label: 'Total Exercise', value: '128', Icon: Dumbbell, color: 'text-green-500', bg: 'bg-green-50', change: '+10 this week' },
-  { label: 'Workout Templates', value: '24', Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50', change: 'Active' },
-  { label: 'Muscle Groups', value: '8', Icon: Activity, color: 'text-orange-500', bg: 'bg-orange-50', change: 'Categories' },
-  { label: 'Most Used Exercise', value: 'Squats', Icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-50', change: 'Top exercise' },
-];
-
-const muscleGroups = [
-  { name: 'Chest', count: 32 },
-  { name: 'Leg', count: 25 },
-  { name: 'Back', count: 20 },
-  { name: 'Shoulder', count: 15 },
-  { name: 'Bicep', count: 18 },
-];
-
 export default function Workout() {
-  const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('All Groups');
   const [equipmentFilter, setEquipmentFilter] = useState('All Levels');
@@ -48,35 +26,114 @@ export default function Workout() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [saving, setSaving] = useState(false);
   const [newExercise, setNewExercise] = useState({
-    name: '', muscleGroup: 'Chest', equipment: 'Barbell',
+    name: '', muscle_group: 'Chest', equipment: 'Barbell',
     difficulty: 'Beginner' as Exercise['difficulty'], instructions: '',
   });
 
-  const filtered = exercises.filter(e => {
-    const matchSearch = e.name.toLowerCase().includes(search.toLowerCase());
-    const matchMuscle = muscleFilter === 'All Groups' || e.muscleGroup === muscleFilter;
-    const matchEquip = equipmentFilter === 'All Levels' || e.equipment === equipmentFilter;
-    return matchSearch && matchMuscle && matchEquip;
-  });
+  const loadExercises = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = {};
+      if (search) params.search = search;
+      if (muscleFilter !== 'All Groups') params.muscle_group = muscleFilter;
+      if (equipmentFilter !== 'All Levels') params.equipment = equipmentFilter;
 
-  const handleAdd = () => {
-    if (!newExercise.name) return;
-    const exercise: Exercise = {
-      id: exercises.length + 1,
-      name: newExercise.name,
-      muscleGroup: newExercise.muscleGroup,
-      equipment: newExercise.equipment,
-      difficulty: newExercise.difficulty,
-      instructions: newExercise.instructions,
+      const res = await api.get('/workouts', { params });
+      setExercises(res.data.exercises);
+    } catch (err) {
+      console.error('Load exercises error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, muscleFilter, equipmentFilter]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      loadExercises();
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [loadExercises]);
+
+  // Dynamic top muscle groups computed from the currently loaded full list
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        const res = await api.get('/workouts');
+        setAllExercises(res.data.exercises);
+      } catch (err) {
+        console.error('Load all exercises error:', err);
+      }
     };
-    setExercises(prev => [...prev, exercise]);
-    setNewExercise({ name: '', muscleGroup: 'Chest', equipment: 'Barbell', difficulty: 'Beginner', instructions: '' });
-    setShowAddModal(false);
+    loadAll();
+  }, []);
+
+  const muscleGroupCounts = allExercises.reduce((acc: Record<string, number>, e) => {
+    acc[e.muscle_group] = (acc[e.muscle_group] || 0) + 1;
+    return acc;
+  }, {});
+  const topMuscleGroups = Object.entries(muscleGroupCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, count }));
+
+  const stats = [
+    { label: 'Total Exercise', value: String(allExercises.length), Icon: Dumbbell, color: 'text-green-500', bg: 'bg-green-50' },
+    { label: 'Muscle Groups', value: String(Object.keys(muscleGroupCounts).length), Icon: Activity, color: 'text-orange-500', bg: 'bg-orange-50' },
+    { label: 'Beginner Friendly', value: String(allExercises.filter((e) => e.difficulty === 'Beginner').length), Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Top Muscle Group', value: topMuscleGroups[0]?.name || '—', Icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+  ];
+
+  const handleAdd = async () => {
+    if (!newExercise.name) return;
+    setSaving(true);
+    try {
+      await api.post('/workouts', newExercise);
+      setNewExercise({ name: '', muscle_group: 'Chest', equipment: 'Barbell', difficulty: 'Beginner', instructions: '' });
+      setShowAddModal(false);
+      loadExercises();
+      const res = await api.get('/workouts');
+      setAllExercises(res.data.exercises);
+    } catch (err) {
+      console.error('Add exercise error:', err);
+      alert('Unable to add exercise. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    setExercises(prev => prev.filter(e => e.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this exercise?')) return;
+    try {
+      await api.delete(`/workouts/${id}`);
+      setExercises((prev) => prev.filter((e) => e.id !== id));
+      setAllExercises((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      console.error('Delete exercise error:', err);
+      alert('Unable to delete exercise. Please try again.');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedExercise) return;
+    setSaving(true);
+    try {
+      await api.put(`/workouts/${selectedExercise.id}`, {
+        name: selectedExercise.name,
+        muscle_group: selectedExercise.muscle_group,
+        equipment: selectedExercise.equipment,
+        instructions: selectedExercise.instructions,
+      });
+      setExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
+      setShowEditModal(false);
+    } catch (err) {
+      console.error('Update exercise error:', err);
+      alert('Unable to update exercise. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -117,7 +174,6 @@ export default function Workout() {
                   <p className="text-xs text-gray-500">{stat.label}</p>
                 </div>
               </div>
-              <p className="text-xs text-green-500 font-medium">{stat.change}</p>
             </div>
           ))}
         </div>
@@ -135,31 +191,37 @@ export default function Workout() {
                     className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-36"
                     placeholder="Search exercises..."
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
                 <select
                   className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
                   value={muscleFilter}
-                  onChange={e => setMuscleFilter(e.target.value)}
+                  onChange={(e) => setMuscleFilter(e.target.value)}
                 >
                   <option>All Groups</option>
                   <option>Chest</option>
+                  <option>Back</option>
                   <option>Legs</option>
-                  <option>Lats</option>
-                  <option>Triceps</option>
-                  <option>Bicep</option>
                   <option>Glutes</option>
+                  <option>Calves</option>
+                  <option>Shoulders</option>
+                  <option>Biceps</option>
+                  <option>Triceps</option>
+                  <option>Core</option>
+                  <option>Full Body</option>
                 </select>
                 <select
                   className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
                   value={equipmentFilter}
-                  onChange={e => setEquipmentFilter(e.target.value)}
+                  onChange={(e) => setEquipmentFilter(e.target.value)}
                 >
                   <option>All Levels</option>
                   <option>Barbell</option>
                   <option>Dumbbell</option>
                   <option>Bodyweight</option>
+                  <option>Machine</option>
+                  <option>Bench</option>
                 </select>
                 <button
                   onClick={() => setShowAddModal(true)}
@@ -173,7 +235,7 @@ export default function Workout() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Exercise Name', 'Muscle Groups', 'Equipment', 'Action'].map(h => (
+                  {['Exercise Name', 'Muscle Groups', 'Equipment', 'Difficulty', 'Action'].map((h) => (
                     <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       {h}
                     </th>
@@ -181,70 +243,75 @@ export default function Workout() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(exercise => (
-                  <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-                          <Dumbbell size={18} className="text-green-600" />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">{exercise.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{exercise.muscleGroup}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{exercise.equipment}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setSelectedExercise(exercise); setShowDetailModal(true); }}
-                          className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => { setSelectedExercise(exercise); setShowEditModal(true); }}
-                          className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(exercise.id)}
-                          className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">Loading exercises...</td>
                   </tr>
-                ))}
+                ) : exercises.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">No exercises found.</td>
+                  </tr>
+                ) : (
+                  exercises.map((exercise) => (
+                    <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                            <Dumbbell size={18} className="text-green-600" />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">{exercise.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{exercise.muscle_group}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{exercise.equipment}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>
+                          {exercise.difficulty}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setSelectedExercise(exercise); setShowDetailModal(true); }}
+                            className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => { setSelectedExercise({ ...exercise }); setShowEditModal(true); }}
+                            className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(exercise.id)}
+                            className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-              <p className="text-sm text-gray-400">Showing {filtered.length} of {exercises.length} exercises</p>
-              <div className="flex items-center gap-2">
-                <button className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 text-sm">‹</button>
-                {[1, 2, 3, 4].map(p => (
-                  <button key={p} className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                    p === 1 ? 'bg-green-500 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'
-                  }`}>{p}</button>
-                ))}
-                <button className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 text-sm">›</button>
-              </div>
-            </div>
           </div>
 
           {/* Top Muscle Groups */}
           <div className="w-56 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-fit">
             <h3 className="text-sm font-bold text-gray-800 mb-4">Top Muscle Groups</h3>
             <div className="flex flex-col gap-3">
-              {muscleGroups.map((mg, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{mg.name}</span>
-                  <span className="text-xs font-semibold text-green-500">{mg.count} exercise</span>
-                </div>
-              ))}
+              {topMuscleGroups.length === 0 ? (
+                <p className="text-xs text-gray-400">No data yet.</p>
+              ) : (
+                topMuscleGroups.map((mg, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{mg.name}</span>
+                    <span className="text-xs font-semibold text-green-500">{mg.count} exercise</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -267,7 +334,7 @@ export default function Workout() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
                   placeholder="e.g. Bench Press"
                   value={newExercise.name}
-                  onChange={e => setNewExercise(p => ({ ...p, name: e.target.value }))}
+                  onChange={(e) => setNewExercise((p) => ({ ...p, name: e.target.value }))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -275,17 +342,19 @@ export default function Workout() {
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">Muscle Group</label>
                   <select
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    value={newExercise.muscleGroup}
-                    onChange={e => setNewExercise(p => ({ ...p, muscleGroup: e.target.value }))}
+                    value={newExercise.muscle_group}
+                    onChange={(e) => setNewExercise((p) => ({ ...p, muscle_group: e.target.value }))}
                   >
                     <option>Chest</option>
-                    <option>Legs</option>
                     <option>Back</option>
-                    <option>Shoulders</option>
-                    <option>Bicep</option>
-                    <option>Triceps</option>
+                    <option>Legs</option>
                     <option>Glutes</option>
+                    <option>Calves</option>
+                    <option>Shoulders</option>
+                    <option>Biceps</option>
+                    <option>Triceps</option>
                     <option>Core</option>
+                    <option>Full Body</option>
                   </select>
                 </div>
                 <div>
@@ -293,13 +362,13 @@ export default function Workout() {
                   <select
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
                     value={newExercise.equipment}
-                    onChange={e => setNewExercise(p => ({ ...p, equipment: e.target.value }))}
+                    onChange={(e) => setNewExercise((p) => ({ ...p, equipment: e.target.value }))}
                   >
                     <option>Barbell</option>
                     <option>Dumbbell</option>
                     <option>Bodyweight</option>
                     <option>Machine</option>
-                    <option>Resistance Band</option>
+                    <option>Bench</option>
                   </select>
                 </div>
               </div>
@@ -308,7 +377,7 @@ export default function Workout() {
                 <select
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
                   value={newExercise.difficulty}
-                  onChange={e => setNewExercise(p => ({ ...p, difficulty: e.target.value as Exercise['difficulty'] }))}
+                  onChange={(e) => setNewExercise((p) => ({ ...p, difficulty: e.target.value as Exercise['difficulty'] }))}
                 >
                   <option>Beginner</option>
                   <option>Intermediate</option>
@@ -321,7 +390,7 @@ export default function Workout() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-24 resize-none"
                   placeholder="Step by step instructions..."
                   value={newExercise.instructions}
-                  onChange={e => setNewExercise(p => ({ ...p, instructions: e.target.value }))}
+                  onChange={(e) => setNewExercise((p) => ({ ...p, instructions: e.target.value }))}
                 />
               </div>
               <div>
@@ -340,9 +409,10 @@ export default function Workout() {
                 </button>
                 <button
                   onClick={handleAdd}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors"
+                  disabled={saving}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
                 >
-                  Save Changes
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -364,7 +434,7 @@ export default function Workout() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-400 mb-1">Muscle Group</p>
-                  <p className="text-sm font-semibold text-gray-700">{selectedExercise.muscleGroup}</p>
+                  <p className="text-sm font-semibold text-gray-700">{selectedExercise.muscle_group}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-400 mb-1">Equipment</p>
@@ -386,7 +456,9 @@ export default function Workout() {
                   <Play size={26} fill="white" />
                 </div>
                 <p className="text-sm font-medium">Video Demonstration</p>
-                <p className="text-xs text-gray-400">Available in full version</p>
+                <p className="text-xs text-gray-400">
+                  {selectedExercise.video_url ? 'Video available' : 'Available in full version'}
+                </p>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}
@@ -415,7 +487,7 @@ export default function Workout() {
                 <input
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
                   value={selectedExercise.name}
-                  onChange={e => setSelectedExercise(p => p ? { ...p, name: e.target.value } : p)}
+                  onChange={(e) => setSelectedExercise((p) => (p ? { ...p, name: e.target.value } : p))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -423,17 +495,19 @@ export default function Workout() {
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">Muscle Group</label>
                   <select
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    value={selectedExercise.muscleGroup}
-                    onChange={e => setSelectedExercise(p => p ? { ...p, muscleGroup: e.target.value } : p)}
+                    value={selectedExercise.muscle_group}
+                    onChange={(e) => setSelectedExercise((p) => (p ? { ...p, muscle_group: e.target.value } : p))}
                   >
                     <option>Chest</option>
-                    <option>Legs</option>
                     <option>Back</option>
-                    <option>Shoulders</option>
-                    <option>Bicep</option>
-                    <option>Triceps</option>
+                    <option>Legs</option>
                     <option>Glutes</option>
+                    <option>Calves</option>
+                    <option>Shoulders</option>
+                    <option>Biceps</option>
+                    <option>Triceps</option>
                     <option>Core</option>
+                    <option>Full Body</option>
                   </select>
                 </div>
                 <div>
@@ -441,13 +515,13 @@ export default function Workout() {
                   <select
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
                     value={selectedExercise.equipment}
-                    onChange={e => setSelectedExercise(p => p ? { ...p, equipment: e.target.value } : p)}
+                    onChange={(e) => setSelectedExercise((p) => (p ? { ...p, equipment: e.target.value } : p))}
                   >
                     <option>Barbell</option>
                     <option>Dumbbell</option>
                     <option>Bodyweight</option>
                     <option>Machine</option>
-                    <option>Resistance Band</option>
+                    <option>Bench</option>
                   </select>
                 </div>
               </div>
@@ -456,7 +530,7 @@ export default function Workout() {
                 <textarea
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none min-h-24 resize-none"
                   value={selectedExercise.instructions}
-                  onChange={e => setSelectedExercise(p => p ? { ...p, instructions: e.target.value } : p)}
+                  onChange={(e) => setSelectedExercise((p) => (p ? { ...p, instructions: e.target.value } : p))}
                 />
               </div>
               <div className="flex gap-3 mt-2">
@@ -467,13 +541,11 @@ export default function Workout() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    setExercises(prev => prev.map(e => e.id === selectedExercise.id ? selectedExercise : e));
-                    setShowEditModal(false);
-                  }}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors"
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
                 >
-                  Save Changes
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>

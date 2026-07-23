@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,7 +15,7 @@ export default function Login() {
       setError('Please enter username and password.');
       return;
     }
-    if (username === 'Admin' && password === 'admin123') {
+    if (username === 'Admin' && password === 'Capstone123Go') {
       navigate('/dashboard');
     } else {
       setError('Invalid username or password.');
@@ -26,13 +28,13 @@ export default function Login() {
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-4xl">🥗</span>
+          <Logo size={40} />
           <span className="text-3xl font-bold text-green-500">NutriFit</span>
         </div>
 
         {/* Username */}
         <div className="w-full flex items-center border border-gray-200 rounded-xl px-4 bg-gray-50 gap-2">
-          <span className="text-lg">👤</span>
+          <User size={18} className="text-gray-400" />
           <input
             className="flex-1 py-3 bg-transparent outline-none text-sm text-gray-700"
             type="text"
@@ -45,7 +47,7 @@ export default function Login() {
 
         {/* Password */}
         <div className="w-full flex items-center border border-gray-200 rounded-xl px-4 bg-gray-50 gap-2">
-          <span className="text-lg">🔒</span>
+          <Lock size={18} className="text-gray-400" />
           <input
             className="flex-1 py-3 bg-transparent outline-none text-sm text-gray-700"
             type={showPassword ? 'text' : 'password'}
@@ -55,10 +57,14 @@ export default function Login() {
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
           />
           <button
-            className="text-lg p-1 hover:opacity-70"
+            className="p-1 hover:opacity-70"
             onClick={() => setShowPassword(!showPassword)}
           >
-            {showPassword ? '🙈' : '👁️'}
+            {showPassword ? (
+              <EyeOff size={18} className="text-gray-400" />
+            ) : (
+              <Eye size={18} className="text-gray-400" />
+            )}
           </button>
         </div>
 

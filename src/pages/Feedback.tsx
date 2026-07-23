@@ -1,37 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Search, MessageSquare, Sparkles, CheckCircle2, Clock,
   X, Star, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import api from '../config/api';
 
 type Ticket = {
-  id: number;
-  user: string;
+  id: string;
+  user_name: string;
+  user_email: string;
   message: string;
-  date: string;
+  created_at: string;
   status: 'Pending' | 'Resolved' | 'New';
   type: string;
   rating: number;
+  admin_response: string | null;
 };
 
-const initialTickets: Ticket[] = [
-  { id: 1, user: 'Stephan Carry', message: 'Add dark mode', date: 'January 10', status: 'Pending', type: 'Suggestion', rating: 5 },
-  { id: 2, user: 'King Sitiago', message: 'Every time I open the exercise...', date: 'February 24', status: 'Pending', type: 'Bug Report', rating: 3 },
-  { id: 3, user: 'Lorenzo Batumbakal', message: "I'm spending time waiting while...", date: 'February 29', status: 'Resolved', type: 'Complaint', rating: 2 },
-  { id: 4, user: 'Malia Fernandez', message: 'For a basic tracker, it takes up too...', date: 'March 2', status: 'New', type: 'Question', rating: 4 },
-  { id: 5, user: 'Gabriella Garcia', message: 'Despite having a robust internet...', date: 'March 3', status: 'New', type: 'Suggestion', rating: 4 },
-];
+type Summary = {
+  total: string;
+  new_count: string;
+  pending_count: string;
+  resolved_count: string;
+};
 
-const stats = [
-  { label: 'Total Feedback', value: '120', Icon: MessageSquare, color: 'text-blue-500', bg: 'bg-blue-50' },
-  { label: 'New Feedback', value: '35', Icon: Sparkles, color: 'text-green-500', bg: 'bg-green-50' },
-  { label: 'Resolved', value: '60', Icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
-  { label: 'Pending', value: '25', Icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
-];
+const PAGE_SIZE = 10;
 
 export default function Feedback() {
-  const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [dateStart, setDateStart] = useState('');
@@ -39,13 +38,35 @@ export default function Feedback() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [response, setResponse] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const filtered = tickets.filter(t => {
-    const matchSearch = t.user.toLowerCase().includes(search.toLowerCase()) ||
-      t.message.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'All Status' || t.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const loadTickets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = {};
+      if (search) params.search = search;
+      if (statusFilter !== 'All Status') params.status = statusFilter;
+      if (dateStart) params.date_start = dateStart;
+      if (dateEnd) params.date_end = dateEnd;
+
+      const res = await api.get('/tickets', { params });
+      setTickets(res.data.tickets);
+      setSummary(res.data.summary);
+      setPage(1);
+    } catch (err) {
+      console.error('Load tickets error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter, dateStart, dateEnd]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      loadTickets();
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [loadTickets]);
 
   const getStatusColor = (status: string) => {
     if (status === 'Pending') return 'bg-orange-50 text-orange-500';
@@ -53,18 +74,64 @@ export default function Feedback() {
     return 'bg-blue-50 text-blue-500';
   };
 
-  const handleResolve = (id: number) => {
-    setTickets(prev => prev.map(t =>
-      t.id === id ? { ...t, status: 'Resolved' } : t
-    ));
-    setShowViewModal(false);
-  };
-
   const handleView = (ticket: Ticket) => {
     setSelectedTicket(ticket);
-    setResponse('');
+    setResponse(ticket.admin_response || '');
     setShowViewModal(true);
   };
+
+  const handleResolve = async () => {
+    if (!selectedTicket) return;
+    setSaving(true);
+    try {
+      await api.patch(`/tickets/${selectedTicket.id}/respond`, {
+        admin_response: response,
+        status: 'Resolved',
+      });
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === selectedTicket.id ? { ...t, status: 'Resolved', admin_response: response } : t
+        )
+      );
+      setShowViewModal(false);
+      loadTickets();
+    } catch (err) {
+      console.error('Respond to ticket error:', err);
+      alert('Unable to update ticket. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveResponseOnly = async () => {
+    if (!selectedTicket) return;
+    setSaving(true);
+    try {
+      await api.patch(`/tickets/${selectedTicket.id}/respond`, {
+        admin_response: response,
+        status: selectedTicket.status === 'New' ? 'Pending' : selectedTicket.status,
+      });
+      setShowViewModal(false);
+      loadTickets();
+    } catch (err) {
+      console.error('Save response error:', err);
+      alert('Unable to save response. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(tickets.length / PAGE_SIZE));
+  const paginatedTickets = tickets.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const stats = summary
+    ? [
+        { label: 'Total Feedback', value: summary.total, Icon: MessageSquare, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { label: 'New Feedback', value: summary.new_count, Icon: Sparkles, color: 'text-green-500', bg: 'bg-green-50' },
+        { label: 'Resolved', value: summary.resolved_count, Icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
+        { label: 'Pending', value: summary.pending_count, Icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
+      ]
+    : [];
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -111,39 +178,34 @@ export default function Feedback() {
                 className="flex-1 py-2.5 bg-transparent outline-none text-sm text-gray-700"
                 placeholder="Search user..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
               <input
                 className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-32"
-                type="text"
-                placeholder="Start Date"
+                type="date"
                 value={dateStart}
-                onChange={e => setDateStart(e.target.value)}
+                onChange={(e) => setDateStart(e.target.value)}
               />
               <span className="text-gray-300">—</span>
               <input
                 className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-32"
-                type="text"
-                placeholder="End Date"
+                type="date"
                 value={dateEnd}
-                onChange={e => setDateEnd(e.target.value)}
+                onChange={(e) => setDateEnd(e.target.value)}
               />
             </div>
             <select
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option>All Status</option>
               <option>New</option>
               <option>Pending</option>
               <option>Resolved</option>
             </select>
-            <button className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-              Filter
-            </button>
           </div>
         </div>
 
@@ -152,7 +214,7 @@ export default function Feedback() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['User', 'Message', 'Date', 'Status', 'Action'].map(h => (
+                {['User', 'Message', 'Date', 'Status', 'Action'].map((h) => (
                   <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     {h}
                   </th>
@@ -160,56 +222,75 @@ export default function Feedback() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(ticket => (
-                <tr key={ticket.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
-                        {ticket.user[0]}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">{ticket.user}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{ticket.message}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{ticket.date}</td>
-                  <td className="px-6 py-4">
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(ticket.status)}`}>
-                      {ticket.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleView(ticket)}
-                      className="bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
+              {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
-                    No tickets found.
-                  </td>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
                 </tr>
+              ) : paginatedTickets.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
+                </tr>
+              ) : (
+                paginatedTickets.map((ticket) => (
+                  <tr key={ticket.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
+                          {ticket.user_name[0]}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{ticket.user_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{ticket.message}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(ticket.status)}`}>
+                        {ticket.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleView(ticket)}
+                        className="bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-            <p className="text-sm text-gray-400">Showing {filtered.length} of {tickets.length} tickets</p>
+            <p className="text-sm text-gray-400">Showing {paginatedTickets.length} of {tickets.length} tickets</p>
             <div className="flex items-center gap-2">
-              <button className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 flex items-center justify-center">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40"
+              >
                 <ChevronLeft size={16} />
               </button>
-              {[1, 2, 3].map(p => (
-                <button key={p} className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                  p === 1 ? 'bg-green-500 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}>{p}</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                    p === page ? 'bg-green-500 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {p}
+                </button>
               ))}
-              <button className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 flex items-center justify-center">
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40"
+              >
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -232,11 +313,11 @@ export default function Feedback() {
               {/* User Info */}
               <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600">
-                  {selectedTicket.user[0]}
+                  {selectedTicket.user_name[0]}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">{selectedTicket.user}</p>
-                  <p className="text-xs text-gray-400">{selectedTicket.date}</p>
+                  <p className="text-sm font-semibold text-gray-700">{selectedTicket.user_name}</p>
+                  <p className="text-xs text-gray-400">{selectedTicket.user_email}</p>
                 </div>
                 <span className={`ml-auto text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(selectedTicket.status)}`}>
                   {selectedTicket.status}
@@ -252,7 +333,7 @@ export default function Feedback() {
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-400 mb-1">Rating</p>
                   <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map(s => (
+                    {[1, 2, 3, 4, 5].map((s) => (
                       <Star
                         key={s}
                         size={14}
@@ -277,7 +358,7 @@ export default function Feedback() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-24 resize-none"
                   placeholder="Type your response here..."
                   value={response}
-                  onChange={e => setResponse(e.target.value)}
+                  onChange={(e) => setResponse(e.target.value)}
                 />
               </div>
 
@@ -289,12 +370,21 @@ export default function Feedback() {
                 >
                   Close
                 </button>
-                {selectedTicket.status !== 'Resolved' && (
+                {selectedTicket.status !== 'Resolved' ? (
                   <button
-                    onClick={() => handleResolve(selectedTicket.id)}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors"
+                    onClick={handleResolve}
+                    disabled={saving}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
                   >
-                    Mark as Resolved
+                    {saving ? 'Saving...' : 'Mark as Resolved'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSaveResponseOnly}
+                    disabled={saving}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                  >
+                    {saving ? 'Saving...' : 'Update Response'}
                   </button>
                 )}
               </div>

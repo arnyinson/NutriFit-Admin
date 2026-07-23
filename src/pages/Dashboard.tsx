@@ -1,34 +1,98 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Utensils, BarChart3, AlertTriangle, ArrowRight } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import api from '../config/api';
 
-const stats = [
-  { label: 'Total User', value: '12,450', Icon: Users, color: 'text-green-500', bg: 'bg-green-50', change: '+12%' },
-  { label: 'Active Meal Plans', value: '8,352', Icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50', change: '+3 this week' },
-  { label: 'Weekly Reports', value: '4,570', Icon: BarChart3, color: 'text-blue-500', bg: 'bg-blue-50', change: '+8%' },
-  { label: 'Allergy Cases', value: '246', Icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50', change: '+14 this week' },
-];
+type DashboardStats = {
+  totalUsers: string;
+  activeMealPlans: string;
+  weeklyReports: string;
+  allergyCases: string;
+};
 
-const recentUsers = [
-  { name: 'David Shee', email: 'davidshee@gmail.com', age: 30, goal: 'Cutting', status: 'Active' },
-  { name: 'Sarah Lee', email: 'sarahlee@gmail.com', age: 27, goal: 'Maintenance', status: 'Active' },
-  { name: 'Michael Brown', email: 'michaelbrown@gmail.com', age: 34, goal: 'Bulking', status: 'Active' },
-  { name: 'Jessica Wang', email: 'jessicawang@gmail.com', age: 25, goal: 'Cutting', status: 'Inactive' },
-  { name: 'Flever Eme', email: 'flevereme@gmail.com', age: 40, goal: 'Maintenance', status: 'Active' },
-];
+type GoalDistributionItem = {
+  dietary_goal: string;
+  count: string;
+};
 
-const goalDistribution = [
-  { label: 'Maintenance', percentage: 32, color: 'bg-green-500' },
-  { label: 'Cut', percentage: 26, color: 'bg-blue-500' },
-  { label: 'Bulking', percentage: 42, color: 'bg-orange-500' },
-];
+type RecentUser = {
+  name: string;
+  email: string;
+  dietary_goal: string;
+  is_active: boolean;
+  age: number;
+};
 
-const userGrowth = [300, 380, 420, 460, 500, 480, 520, 560, 510, 540, 580, 600];
-const growthLabels = ['Apr 16', 'Apr 17', 'Apr 20', 'Apr 21', 'Apr 22', 'Apr 23'];
+const goalColors: Record<string, string> = {
+  Maintenance: 'bg-green-500',
+  Cutting: 'bg-blue-500',
+  Bulking: 'bg-orange-500',
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const maxGrowth = Math.max(...userGrowth);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [goalDistribution, setGoalDistribution] = useState<GoalDistributionItem[]>([]);
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const res = await api.get('/users/admin/dashboard-stats');
+        setStats(res.data.stats);
+        setGoalDistribution(res.data.goalDistribution);
+        setRecentUsers(res.data.recentUsers);
+      } catch (err) {
+        console.error('Load dashboard error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboard();
+  }, []);
+
+  const totalGoalCount = goalDistribution.reduce((sum, g) => sum + Number(g.count), 0);
+
+  const statCards = stats
+    ? [
+        { label: 'Total User', value: Number(stats.totalUsers).toLocaleString(), Icon: Users, color: 'text-green-500', bg: 'bg-green-50' },
+        { label: 'Active Meal Plans', value: Number(stats.activeMealPlans).toLocaleString(), Icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { label: 'Weekly Reports', value: Number(stats.weeklyReports).toLocaleString(), Icon: BarChart3, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { label: 'Allergy Cases', value: Number(stats.allergyCases).toLocaleString(), Icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+      ]
+    : [];
+
+  // Conic gradient string para sa pie chart, dynamic base sa totoong distribution
+  const buildConicGradient = () => {
+    if (totalGoalCount === 0) return '#E5E7EB';
+    const colorMap: Record<string, string> = {
+      Maintenance: '#4CAF50',
+      Cutting: '#2196F3',
+      Bulking: '#FF9800',
+    };
+    let cumulative = 0;
+    const segments = goalDistribution.map((g) => {
+      const pct = (Number(g.count) / totalGoalCount) * 100;
+      const start = cumulative;
+      cumulative += pct;
+      const color = colorMap[g.dietary_goal] || '#9CA3AF';
+      return `${color} ${start}% ${cumulative}%`;
+    });
+    return `conic-gradient(${segments.join(', ')})`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar active="Dashboard" />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400 text-sm">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -46,7 +110,7 @@ export default function Dashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, i) => (
+          {statCards.map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 mb-3">
                 <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
@@ -57,51 +121,39 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500">{stat.label}</p>
                 </div>
               </div>
-              <p className="text-xs text-green-500 font-medium">{stat.change}</p>
             </div>
           ))}
         </div>
 
         <div className="grid grid-cols-3 gap-6 mb-8">
-          {/* User Growth Chart */}
-          <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-base font-bold text-gray-800 mb-4">User Growth</h2>
-            <div className="flex items-end gap-3 h-40">
-              {userGrowth.map((val, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full bg-green-500 rounded-t-md transition-all"
-                    style={{ height: `${(val / maxGrowth) * 140}px` }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-2">
-              {growthLabels.map((label, i) => (
-                <span key={i} className="text-xs text-gray-400">{label}</span>
-              ))}
-            </div>
-          </div>
-
           {/* Goal Distribution */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="col-span-3 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-base font-bold text-gray-800 mb-4">Goal Distribution</h2>
-            <div className="flex justify-center mb-4">
-              <div className="relative w-32 h-32 rounded-full" style={{
-                background: 'conic-gradient(#4CAF50 0% 32%, #2196F3 32% 58%, #FF9800 58% 100%)'
-              }}>
-                <div className="absolute inset-4 bg-white rounded-full" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              {goalDistribution.map((goal, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${goal.color}`} />
-                  <span className="text-xs text-gray-600">{goal.label}</span>
-                  <span className="text-xs font-bold text-gray-800 ml-auto">{goal.percentage}%</span>
+            {totalGoalCount === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No user data yet.</p>
+            ) : (
+              <div className="flex items-center gap-8">
+                <div className="flex justify-center">
+                  <div
+                    className="relative w-32 h-32 rounded-full"
+                    style={{ background: buildConicGradient() }}
+                  >
+                    <div className="absolute inset-4 bg-white rounded-full" />
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex flex-col gap-2 flex-1">
+                  {goalDistribution.map((goal, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${goalColors[goal.dietary_goal] || 'bg-gray-400'}`} />
+                      <span className="text-xs text-gray-600">{goal.dietary_goal}</span>
+                      <span className="text-xs font-bold text-gray-800 ml-auto">
+                        {Math.round((Number(goal.count) / totalGoalCount) * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -116,43 +168,47 @@ export default function Dashboard() {
               View all <ArrowRight size={12} />
             </button>
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                <th className="pb-3 font-medium">Users</th>
-                <th className="pb-3 font-medium">Gmail</th>
-                <th className="pb-3 font-medium">Age</th>
-                <th className="pb-3 font-medium">Goal</th>
-                <th className="pb-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentUsers.map((user, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                        {user.name[0]}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">{user.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 text-sm text-gray-500">{user.email}</td>
-                  <td className="py-3 text-sm text-gray-500">{user.age}</td>
-                  <td className="py-3 text-sm text-gray-500">{user.goal}</td>
-                  <td className="py-3">
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                      user.status === 'Active'
-                        ? 'text-green-600 bg-green-50'
-                        : 'text-orange-500 bg-orange-50'
-                    }`}>
-                      {user.status}
-                    </span>
-                  </td>
+          {recentUsers.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No users yet.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                  <th className="pb-3 font-medium">Users</th>
+                  <th className="pb-3 font-medium">Gmail</th>
+                  <th className="pb-3 font-medium">Age</th>
+                  <th className="pb-3 font-medium">Goal</th>
+                  <th className="pb-3 font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentUsers.map((user, i) => (
+                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                          {user.name[0]}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-sm text-gray-500">{user.email}</td>
+                    <td className="py-3 text-sm text-gray-500">{user.age}</td>
+                    <td className="py-3 text-sm text-gray-500">{user.dietary_goal}</td>
+                    <td className="py-3">
+                      <span
+                        className={`text-xs font-bold px-2 py-1 rounded-full ${
+                          user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
+                        }`}
+                      >
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
