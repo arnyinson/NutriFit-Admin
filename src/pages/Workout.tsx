@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Eye, Pencil, Trash2, X, Play,
   Dumbbell, ClipboardList, Activity, Star,
@@ -27,6 +27,8 @@ export default function Workout() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [newExercise, setNewExercise] = useState({
     name: '', muscle_group: 'Chest', equipment: 'Barbell',
     difficulty: 'Beginner' as Exercise['difficulty'], instructions: '',
@@ -70,6 +72,15 @@ export default function Workout() {
     loadAll();
   }, []);
 
+  const refreshAllExercises = async () => {
+    try {
+      const res = await api.get('/workouts');
+      setAllExercises(res.data.exercises);
+    } catch (err) {
+      console.error('Refresh all exercises error:', err);
+    }
+  };
+
   const muscleGroupCounts = allExercises.reduce((acc: Record<string, number>, e) => {
     acc[e.muscle_group] = (acc[e.muscle_group] || 0) + 1;
     return acc;
@@ -94,8 +105,7 @@ export default function Workout() {
       setNewExercise({ name: '', muscle_group: 'Chest', equipment: 'Barbell', difficulty: 'Beginner', instructions: '' });
       setShowAddModal(false);
       loadExercises();
-      const res = await api.get('/workouts');
-      setAllExercises(res.data.exercises);
+      refreshAllExercises();
     } catch (err) {
       console.error('Add exercise error:', err);
       alert('Unable to add exercise. Please try again.');
@@ -127,12 +137,45 @@ export default function Workout() {
         instructions: selectedExercise.instructions,
       });
       setExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
+      setAllExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
       setShowEditModal(false);
     } catch (err) {
       console.error('Update exercise error:', err);
       alert('Unable to update exercise. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedExercise) return;
+
+    if (!file.type.startsWith('video/')) {
+      alert('Please select a valid video file.');
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append('video', file);
+
+      const res = await api.post(`/upload/exercise-video/${selectedExercise.id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const updatedExercise = { ...selectedExercise, video_url: res.data.video_url };
+      setSelectedExercise(updatedExercise);
+      setExercises((prev) => prev.map((ex) => (ex.id === selectedExercise.id ? updatedExercise : ex)));
+      setAllExercises((prev) => prev.map((ex) => (ex.id === selectedExercise.id ? updatedExercise : ex)));
+      alert('Video uploaded successfully!');
+    } catch (err) {
+      console.error('Upload video error:', err);
+      alert('Unable to upload video. Please try again.');
+    } finally {
+      setUploadingVideo(false);
+      if (videoInputRef.current) videoInputRef.current.value = '';
     }
   };
 
@@ -393,12 +436,8 @@ export default function Workout() {
                   onChange={(e) => setNewExercise((p) => ({ ...p, instructions: e.target.value }))}
                 />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Upload Video</label>
-                <div className="w-full border-2 border-dashed border-gray-200 rounded-xl px-4 py-6 flex flex-col items-center gap-2 text-gray-400 text-sm cursor-pointer hover:border-green-400 transition-colors">
-                  <Play size={22} />
-                  Click to upload video
-                </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-600">
+                💡 Video upload is available after saving — open this exercise again via the Edit (pencil) button.
               </div>
               <div className="flex gap-3 mt-2">
                 <button
@@ -451,15 +490,22 @@ export default function Workout() {
                 <p className="text-xs text-gray-400 mb-2">Instructions</p>
                 <p className="text-sm text-gray-700 whitespace-pre-line">{selectedExercise.instructions}</p>
               </div>
-              <div className="bg-gray-900 rounded-xl p-8 flex flex-col items-center justify-center text-white gap-2">
-                <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
-                  <Play size={26} fill="white" />
+              {selectedExercise.video_url ? (
+                <video
+                  src={selectedExercise.video_url}
+                  controls
+                  className="w-full rounded-xl bg-black"
+                  style={{ maxHeight: 220 }}
+                />
+              ) : (
+                <div className="bg-gray-900 rounded-xl p-8 flex flex-col items-center justify-center text-white gap-2">
+                  <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
+                    <Play size={26} fill="white" />
+                  </div>
+                  <p className="text-sm font-medium">Video Demonstration</p>
+                  <p className="text-xs text-gray-400">No video uploaded yet</p>
                 </div>
-                <p className="text-sm font-medium">Video Demonstration</p>
-                <p className="text-xs text-gray-400">
-                  {selectedExercise.video_url ? 'Video available' : 'Available in full version'}
-                </p>
-              </div>
+              )}
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors"
@@ -533,6 +579,40 @@ export default function Workout() {
                   onChange={(e) => setSelectedExercise((p) => (p ? { ...p, instructions: e.target.value } : p))}
                 />
               </div>
+
+              {/* Video Upload Section */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Exercise Video</label>
+                {selectedExercise.video_url && (
+                  <video
+                    src={selectedExercise.video_url}
+                    controls
+                    className="w-full rounded-xl bg-black mb-3"
+                    style={{ maxHeight: 180 }}
+                  />
+                )}
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={handleVideoFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => videoInputRef.current?.click()}
+                  disabled={uploadingVideo}
+                  className="w-full border-2 border-dashed border-gray-200 rounded-xl px-4 py-6 flex flex-col items-center gap-2 text-gray-400 text-sm cursor-pointer hover:border-green-400 transition-colors disabled:opacity-60"
+                >
+                  <Play size={22} />
+                  {uploadingVideo
+                    ? 'Uploading video...'
+                    : selectedExercise.video_url
+                    ? 'Click to replace video'
+                    : 'Click to upload video'}
+                </button>
+              </div>
+
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={() => setShowEditModal(false)}
