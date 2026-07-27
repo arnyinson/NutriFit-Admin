@@ -5,6 +5,7 @@ import Users from './pages/Users';
 import MealPlan from './pages/MealPlan';
 import Workout from './pages/Workout';
 import Feedback from './pages/Feedback';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -12,11 +13,46 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/meal-plan" element={<MealPlan />} />
-        <Route path="/workout" element={<Workout />} />
-        <Route path="/feedback" element={<Feedback />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <Users />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/meal-plan"
+          element={
+            <ProtectedRoute>
+              <MealPlan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workout"
+          element={
+            <ProtectedRoute>
+              <Workout />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/feedback"
+          element={
+            <ProtectedRoute>
+              <Feedback />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
