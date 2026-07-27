@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import Logo from '../components/Logo';
+import api from '../config/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -9,16 +10,25 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!username || !password) {
       setError('Please enter username and password.');
       return;
     }
-    if (username === 'Admin' && password === 'Capstone123Go') {
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/auth/admin-login', { username, password });
+      localStorage.setItem('adminToken', res.data.token);
       navigate('/dashboard');
-    } else {
-      setError('Invalid username or password.');
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Invalid username or password.';
+      setError(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,6 +52,7 @@ export default function Login() {
             value={username}
             onChange={e => { setUsername(e.target.value); setError(''); }}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            disabled={loading}
           />
         </div>
 
@@ -55,6 +66,7 @@ export default function Login() {
             value={password}
             onChange={e => { setPassword(e.target.value); setError(''); }}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            disabled={loading}
           />
           <button
             className="p-1 hover:opacity-70"
@@ -75,10 +87,11 @@ export default function Login() {
 
         {/* Login Button */}
         <button
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-base transition-colors mt-2"
+          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-base transition-colors mt-2 disabled:opacity-60"
           onClick={handleLogin}
+          disabled={loading}
         >
-          Login
+          {loading ? 'Logging in...' : 'Login'}
         </button>
 
         {/* Footer */}
