@@ -74,11 +74,24 @@ export default function Feedback() {
     return 'bg-blue-50 text-blue-500';
   };
 
-  const handleView = (ticket: Ticket) => {
-    setSelectedTicket(ticket);
-    setResponse(ticket.admin_response || '');
-    setShowViewModal(true);
-  };
+  const handleView = async (ticket: Ticket) => {
+  setSelectedTicket(ticket);
+  setResponse(ticket.admin_response || '');
+  setShowViewModal(true);
+
+  // Awtomatikong palitan mula "New" papuntang "Pending" sa sandaling buksan ito ng admin
+  if (ticket.status === 'New') {
+    try {
+      await api.patch(`/tickets/${ticket.id}/status`, { status: 'Pending' });
+      setSelectedTicket((prev) => (prev ? { ...prev, status: 'Pending' } : prev));
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticket.id ? { ...t, status: 'Pending' } : t))
+      );
+    } catch (err) {
+      console.error('Auto-update to Pending error:', err);
+    }
+  }
+};
 
   const handleResolve = async () => {
     if (!selectedTicket) return;
