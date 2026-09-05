@@ -74,7 +74,7 @@ export default function Feedback() {
     return 'bg-blue-50 text-blue-500';
   };
 
-  const handleView = async (ticket: Ticket) => {
+const handleView = async (ticket: Ticket) => {
   setSelectedTicket(ticket);
   setResponse(ticket.admin_response || '');
   setShowViewModal(true);
@@ -84,9 +84,7 @@ export default function Feedback() {
     try {
       await api.patch(`/tickets/${ticket.id}/status`, { status: 'Pending' });
       setSelectedTicket((prev) => (prev ? { ...prev, status: 'Pending' } : prev));
-      setTickets((prev) =>
-        prev.map((t) => (t.id === ticket.id ? { ...t, status: 'Pending' } : t))
-      );
+      loadTickets(); // i-refresh ang buong listahan AT ang summary counts
     } catch (err) {
       console.error('Auto-update to Pending error:', err);
     }
