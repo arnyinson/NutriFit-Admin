@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, RefreshCw, Star } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, ShieldCheck, AlertTriangle, ListPlus } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 
@@ -17,6 +17,19 @@ type Meal = {
   instructions: string;
 };
 
+type OutsideFoodLog = {
+  id: string;
+  food_name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  weight_grams: number | null;
+  logged_at: string;
+  user_name: string;
+  username: string;
+};
+
 export default function MealPlan() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,8 +40,11 @@ export default function MealPlan() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [saving, setSaving] = useState(false);
   const [newMeal, setNewMeal] = useState({
-    name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '',
+    name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '', instructions: '',
   });
+
+  const [outsideLogs, setOutsideLogs] = useState<OutsideFoodLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
 
   const loadMeals = useCallback(async () => {
     setLoading(true);
@@ -46,6 +62,18 @@ export default function MealPlan() {
     }
   }, [search, categoryFilter]);
 
+  const loadOutsideLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const res = await api.get('/meals/log/all', { params: { limit: 20 } });
+      setOutsideLogs(res.data.foodLogs);
+    } catch (err) {
+      console.error('Load outside food logs error:', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, []);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       loadMeals();
@@ -53,20 +81,27 @@ export default function MealPlan() {
     return () => clearTimeout(timeout);
   }, [loadMeals]);
 
+  useEffect(() => {
+    loadOutsideLogs();
+  }, [loadOutsideLogs]);
+
   // Live stats computed from the currently loaded meals
   const totalMeals = meals.length;
   const proteinMeals = meals.filter((m) => m.category === 'Protein').length;
   const withAllergens = meals.filter((m) => m.allergens && m.allergens.length > 0).length;
-  const avgCalories = meals.length > 0
-    ? Math.round(meals.reduce((sum, m) => sum + Number(m.calories), 0) / meals.length)
-    : 0;
+  const allergenFreeMeals = totalMeals - withAllergens;
 
   const stats = [
     { label: 'Total Meals', value: String(totalMeals), Icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
     { label: 'Protein-Based Meals', value: String(proteinMeals), Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'With Allergens', value: String(withAllergens), Icon: RefreshCw, color: 'text-green-500', bg: 'bg-green-50' },
-    { label: 'Avg. Calories', value: `${avgCalories} kcal`, Icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+    { label: 'With Allergens', value: String(withAllergens), Icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+    { label: 'Allergen-Free Meals', value: String(allergenFreeMeals), Icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-50' },
   ];
+
+  const formatLogTime = (isoDate: string) => {
+    const date = new Date(isoDate);
+    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
 
   const handleAdd = async () => {
     if (!newMeal.name || !newMeal.calories) return;
@@ -82,9 +117,9 @@ export default function MealPlan() {
         fats: Number(newMeal.fats) || 0,
         allergens: newMeal.allergens ? newMeal.allergens.split(',').map((a) => a.trim()) : [],
         ingredients: [],
-        instructions: '',
+        instructions: newMeal.instructions,
       });
-      setNewMeal({ name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '' });
+      setNewMeal({ name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '', instructions: '' });
       setShowAddModal(false);
       loadMeals();
     } catch (err) {
@@ -122,6 +157,7 @@ export default function MealPlan() {
         protein: Number(selectedMeal.protein),
         carbs: Number(selectedMeal.carbs),
         fats: Number(selectedMeal.fats),
+        instructions: selectedMeal.instructions,
       });
       setMeals((prev) => prev.map((m) => (m.id === selectedMeal.id ? selectedMeal : m)));
       setShowEditModal(false);
@@ -152,143 +188,186 @@ export default function MealPlan() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
-                  <stat.Icon size={22} className={stat.color} />
+        {/* Main content: table on the left, stats + outside logs stacked on the right */}
+        <div className="flex gap-6 items-start">
+          {/* Meal Table */}
+          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0">
+            {/* Table Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-wrap gap-3">
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Meal table</h2>
+                <p className="text-xs text-gray-400">Manage all meals available in the system</p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
+                  <Search size={16} className="text-gray-400" />
+                  <input
+                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-48"
+                    placeholder="Search meal name..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
                 </div>
-                <div>
-                  <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
-                </div>
+                <select
+                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option>All Categories</option>
+                  <option>Protein</option>
+                  <option>Carbs</option>
+                  <option>Vegetable</option>
+                  <option>Fats</option>
+                </select>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} /> Add new meal
+                </button>
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Meal Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-          {/* Table Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-            <div>
-              <h2 className="text-base font-bold text-gray-800">Meal table</h2>
-              <p className="text-xs text-gray-400">Manage all meals available in the system</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
-                <Search size={16} className="text-gray-400" />
-                <input
-                  className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-48"
-                  placeholder="Search meal name..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <select
-                className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option>All Categories</option>
-                <option>Protein</option>
-                <option>Carbs</option>
-                <option>Vegetable</option>
-              </select>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
-              >
-                <Plus size={16} /> Add new meal
-              </button>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'Macros P/C/F', 'Actions'].map((h) => (
+                      <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">Loading meals...</td>
+                    </tr>
+                  ) : meals.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No meals found.</td>
+                    </tr>
+                  ) : (
+                    meals.map((meal) => (
+                      <tr key={meal.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                              <Utensils size={18} className="text-orange-500" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">{meal.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{meal.meal_type}</td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                              meal.category === 'Protein'
+                                ? 'bg-green-50 text-green-600'
+                                : meal.category === 'Carbs'
+                                ? 'bg-orange-50 text-orange-500'
+                                : meal.category === 'Fats'
+                                ? 'bg-purple-50 text-purple-500'
+                                : 'bg-blue-50 text-blue-500'
+                            }`}
+                          >
+                            {meal.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{meal.calories} kcal</td>
+                        <td className="px-6 py-4">
+                          {meal.allergens && meal.allergens.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {meal.allergens.map((a, i) => (
+                                <span key={i} className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">
+                                  {a}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {meal.protein}g/{meal.carbs}g/{meal.fats}g
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleEdit(meal)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors">
+                              <Pencil size={16} />
+                            </button>
+                            <button onClick={() => handleDelete(meal.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'Macros P/C/F', 'Actions'].map((h) => (
-                  <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">Loading meals...</td>
-                </tr>
-              ) : meals.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No meals found.</td>
-                </tr>
-              ) : (
-                meals.map((meal) => (
-                  <tr key={meal.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                          <Utensils size={18} className="text-orange-500" />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">{meal.name}</span>
+          {/* Right column: Stats + Outside Food Logs, stacked */}
+          <div className="w-72 flex flex-col gap-4 flex-shrink-0">
+            {stats.map((stat, i) => (
+              <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0`}>
+                    <stat.Icon size={22} className={stat.color} />
+                  </div>
+                  <div>
+                    <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className="text-xs text-gray-500">{stat.label}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Outside Food Logs Panel */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="flex items-center gap-2 p-5 border-b border-gray-100">
+                <div className="bg-purple-50 w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <ListPlus size={18} className="text-purple-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">Outside Food Logs</h3>
+                  <p className="text-[11px] text-gray-400">User-logged meals outside the system</p>
+                </div>
+              </div>
+              <div className="max-h-[520px] overflow-y-auto">
+                {loadingLogs ? (
+                  <p className="text-xs text-gray-400 text-center py-8">Loading logs...</p>
+                ) : outsideLogs.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-8">No outside food logs yet.</p>
+                ) : (
+                  outsideLogs.map((log) => (
+                    <div key={log.id} className="px-5 py-3 border-b border-gray-50 last:border-b-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="text-sm font-medium text-gray-700 leading-tight">{log.food_name}</p>
+                        <span className="text-xs font-semibold text-purple-500 whitespace-nowrap">{log.calories} kcal</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{meal.meal_type}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                          meal.category === 'Protein'
-                            ? 'bg-green-50 text-green-600'
-                            : meal.category === 'Carbs'
-                            ? 'bg-orange-50 text-orange-500'
-                            : 'bg-blue-50 text-blue-500'
-                        }`}
-                      >
-                        {meal.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{meal.calories} kcal</td>
-                    <td className="px-6 py-4">
-                      {meal.allergens && meal.allergens.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {meal.allergens.map((a, i) => (
-                            <span key={i} className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">
-                              {a}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {meal.protein}g/{meal.carbs}g/{meal.fats}g
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleEdit(meal)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors">
-                          <Pencil size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(meal.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
-                          <Trash2 size={16} />
-                        </button>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-[11px] text-gray-400">
+                          {log.user_name} <span className="text-gray-300">·</span> @{log.username}
+                        </p>
+                        <p className="text-[11px] text-gray-400">{formatLogTime(log.logged_at)}</p>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Add Meal Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Add New Meal</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -316,6 +395,7 @@ export default function MealPlan() {
                     <option>Protein</option>
                     <option>Carbs</option>
                     <option>Vegetable</option>
+                    <option>Fats</option>
                   </select>
                 </div>
                 <div>
@@ -346,7 +426,7 @@ export default function MealPlan() {
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">Allergens (comma separated)</label>
                   <input
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    placeholder="e.g. Soy, Gluten"
+                    placeholder="e.g. Soy, Wheat"
                     value={newMeal.allergens}
                     onChange={(e) => setNewMeal((p) => ({ ...p, allergens: e.target.value }))}
                   />
@@ -384,6 +464,15 @@ export default function MealPlan() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions</label>
+                <textarea
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-[100px] resize-none"
+                  placeholder="e.g. 1. Marinate chicken in soy sauce and vinegar for 30 minutes. 2. Sauté garlic and onions..."
+                  value={newMeal.instructions}
+                  onChange={(e) => setNewMeal((p) => ({ ...p, instructions: e.target.value }))}
+                />
+              </div>
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={() => setShowAddModal(false)}
@@ -406,8 +495,8 @@ export default function MealPlan() {
 
       {/* Edit Meal Modal */}
       {showEditModal && selectedMeal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Edit Meal</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -434,6 +523,7 @@ export default function MealPlan() {
                     <option>Protein</option>
                     <option>Carbs</option>
                     <option>Vegetable</option>
+                    <option>Fats</option>
                   </select>
                 </div>
                 <div>
@@ -474,6 +564,15 @@ export default function MealPlan() {
                     onChange={(e) => setSelectedMeal((p) => (p ? { ...p, fats: Number(e.target.value) } : p))}
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions</label>
+                <textarea
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-[100px] resize-none"
+                  placeholder="e.g. 1. Marinate chicken in soy sauce and vinegar for 30 minutes. 2. Sauté garlic and onions..."
+                  value={selectedMeal.instructions || ''}
+                  onChange={(e) => setSelectedMeal((p) => (p ? { ...p, instructions: e.target.value } : p))}
+                />
               </div>
               <div className="flex gap-3 mt-2">
                 <button
