@@ -100,7 +100,7 @@ export default function Sidebar({ active }: { active: string }) {
         </nav>
 
         {/* Admin Profile — may dropdown */}
-        <div className="relative" ref={profileMenuRef}>
+       <div className="relative mt-4 pt-4 border-t border-gray-100" ref={profileMenuRef}>
           {showProfileMenu && (
             <div className="absolute bottom-full mb-2 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-50">
