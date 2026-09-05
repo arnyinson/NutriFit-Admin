@@ -79,12 +79,12 @@ export default function Feedback() {
     setResponse(ticket.admin_response || '');
     setShowViewModal(true);
 
-    // Awtomatikong palitan mula "New" papuntang "Pending" sa sandaling buksan ito ng admin
+    // Auto-switch from "New" to "Pending" the moment the admin opens it
     if (ticket.status === 'New') {
       try {
         await api.patch(`/tickets/${ticket.id}/status`, { status: 'Pending' });
         setSelectedTicket((prev) => (prev ? { ...prev, status: 'Pending' } : prev));
-        loadTickets(); // i-refresh ang buong listahan AT ang summary counts
+        loadTickets(); // refresh the full list AND the summary counts
       } catch (err) {
         console.error('Auto-update to Pending error:', err);
       }
@@ -148,32 +148,24 @@ export default function Feedback() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar active="Feedback" />
 
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Feedback Management</h1>
-            <p className="text-sm text-gray-400 mt-1">Manage and review feedback submitted by mobile application users</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">A</div>
-              <span className="text-sm font-medium text-gray-700">Admin</span>
-            </div>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Feedback Management</h1>
+          <p className="text-sm text-gray-400 mt-1">Manage and review feedback submitted by mobile application users</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           {stats.map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
-                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
+                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0`}>
                   <stat.Icon size={22} className={stat.color} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
+                  <p className="text-xs text-gray-500 truncate">{stat.label}</p>
                 </div>
               </div>
             </div>
@@ -181,12 +173,12 @@ export default function Feedback() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-          <div className="flex items-center gap-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 mb-6">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
             <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
-              <Search size={16} className="text-gray-400" />
+              <Search size={16} className="text-gray-400 flex-shrink-0" />
               <input
-                className="flex-1 py-2.5 bg-transparent outline-none text-sm text-gray-700"
+                className="flex-1 py-2.5 bg-transparent outline-none text-sm text-gray-700 min-w-0"
                 placeholder="Search user..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -194,14 +186,14 @@ export default function Feedback() {
             </div>
             <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
               <input
-                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-32"
+                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-full sm:w-32"
                 type="date"
                 value={dateStart}
                 onChange={(e) => setDateStart(e.target.value)}
               />
               <span className="text-gray-300">—</span>
               <input
-                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-32"
+                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-full sm:w-32"
                 type="date"
                 value={dateEnd}
                 onChange={(e) => setDateEnd(e.target.value)}
@@ -222,66 +214,68 @@ export default function Feedback() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Ticket ID', 'User', 'Message', 'Date', 'Status', 'Action'].map((h) => (
-                  <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
+                  {['Ticket ID', 'User', 'Message', 'Date', 'Status', 'Action'].map((h) => (
+                    <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ) : paginatedTickets.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
-                </tr>
-              ) : (
-                paginatedTickets.map((ticket) => (
-                  <tr key={ticket.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-mono font-semibold text-gray-500">#{ticket.id.slice(0, 8).toUpperCase()}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
-                          {ticket.user_name[0]}
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">{ticket.user_name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{ticket.message}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(ticket.status)}`}>
-                        {ticket.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleView(ticket)}
-                        className="bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-                      >
-                        View
-                      </button>
-                    </td>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : paginatedTickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
+                  </tr>
+                ) : (
+                  paginatedTickets.map((ticket) => (
+                    <tr key={ticket.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <span className="text-xs font-mono font-semibold text-gray-500 whitespace-nowrap">#{ticket.id.slice(0, 8).toUpperCase()}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">
+                            {ticket.user_name[0]}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{ticket.user_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{ticket.message}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(ticket.status)}`}>
+                          {ticket.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleView(ticket)}
+                          className="bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
             <p className="text-sm text-gray-400">Showing {paginatedTickets.length} of {tickets.length} tickets</p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-center">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -314,8 +308,8 @@ export default function Feedback() {
 
       {/* View Ticket Modal */}
       {showViewModal && selectedTicket && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-[520px] shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[520px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-lg font-bold text-gray-800">Ticket Details</h2>
@@ -328,15 +322,15 @@ export default function Feedback() {
 
             <div className="flex flex-col gap-4">
               {/* User Info */}
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600">
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl flex-wrap">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
                   {selectedTicket.user_name[0]}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">{selectedTicket.user_name}</p>
-                  <p className="text-xs text-gray-400">{selectedTicket.user_email}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-700 truncate">{selectedTicket.user_name}</p>
+                  <p className="text-xs text-gray-400 truncate">{selectedTicket.user_email}</p>
                 </div>
-                <span className={`ml-auto text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(selectedTicket.status)}`}>
+                <span className={`ml-auto text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(selectedTicket.status)}`}>
                   {selectedTicket.status}
                 </span>
               </div>
@@ -380,7 +374,7 @@ export default function Feedback() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setShowViewModal(false)}
                   className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"

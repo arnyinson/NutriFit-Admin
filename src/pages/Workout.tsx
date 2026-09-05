@@ -186,78 +186,72 @@ export default function Workout() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar active="Workout" />
 
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Workout Management</h1>
-            <p className="text-sm text-gray-400 mt-1">Manage workout and exercise templates for the system</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">A</div>
-              <span className="text-sm font-medium text-gray-700">Admin</span>
-            </div>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Workout Management</h1>
+          <p className="text-sm text-gray-400 mt-1">Manage workout and exercise templates for the system</p>
         </div>
 
-        {/* Main content: table on the left, breakdown stats stacked on the right */}
-        <div className="flex gap-6 items-start">
+        {/* Main content: table stacks above breakdown panel on mobile, side by side on large screens */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Exercise Table */}
-          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0">
+          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0">
             {/* Table Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-wrap gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
               <h2 className="text-base font-bold text-gray-800">Exercise</h2>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
-                  <Search size={16} className="text-gray-400" />
+                  <Search size={16} className="text-gray-400 flex-shrink-0" />
                   <input
-                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-64"
+                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-full sm:w-64"
                     placeholder="Search exercises, muscle groups, equipment..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <select
-                  className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
-                  value={muscleFilter}
-                  onChange={(e) => setMuscleFilter(e.target.value)}
-                >
-                  <option>Muscle Groups</option>
-                  <option>Chest</option>
-                  <option>Back</option>
-                  <option>Legs</option>
-                  <option>Glutes</option>
-                  <option>Calves</option>
-                  <option>Shoulders</option>
-                  <option>Biceps</option>
-                  <option>Triceps</option>
-                  <option>Core</option>
-                  <option>Full Body</option>
-                </select>
-                <select
-                  className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
-                  value={equipmentFilter}
-                  onChange={(e) => setEquipmentFilter(e.target.value)}
-                >
-                  <option>Equipment</option>
-                  <option>Barbell</option>
-                  <option>Dumbbell</option>
-                  <option>Bodyweight</option>
-                  <option>Machine</option>
-                  <option>Bench</option>
-                </select>
+                <div className="flex gap-3">
+                  <select
+                    className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                    value={muscleFilter}
+                    onChange={(e) => setMuscleFilter(e.target.value)}
+                  >
+                    <option>Muscle Groups</option>
+                    <option>Chest</option>
+                    <option>Back</option>
+                    <option>Legs</option>
+                    <option>Glutes</option>
+                    <option>Calves</option>
+                    <option>Shoulders</option>
+                    <option>Biceps</option>
+                    <option>Triceps</option>
+                    <option>Core</option>
+                    <option>Full Body</option>
+                  </select>
+                  <select
+                    className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                    value={equipmentFilter}
+                    onChange={(e) => setEquipmentFilter(e.target.value)}
+                  >
+                    <option>Equipment</option>
+                    <option>Barbell</option>
+                    <option>Dumbbell</option>
+                    <option>Bodyweight</option>
+                    <option>Machine</option>
+                    <option>Bench</option>
+                  </select>
+                </div>
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
+                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
-                  <Plus size={16} /> Add new exercise
+                  <Plus size={16} /> <span className="hidden sm:inline">Add new exercise</span><span className="sm:hidden">Add</span>
                 </button>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     {['Exercise Name', 'Muscle Groups', 'Equipment', 'Difficulty', 'Action'].map((h) => (
@@ -281,16 +275,16 @@ export default function Workout() {
                       <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
                               <Dumbbell size={18} className="text-green-600" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700">{exercise.name}</span>
+                            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{exercise.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{exercise.muscle_group}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{exercise.equipment}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{exercise.muscle_group}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{exercise.equipment}</td>
                         <td className="px-6 py-4">
-                          <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>
+                          <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${getDifficultyColor(exercise.difficulty)}`}>
                             {exercise.difficulty}
                           </span>
                         </td>
@@ -325,7 +319,7 @@ export default function Workout() {
           </div>
 
           {/* Right column: Total + breakdowns, stacked */}
-          <div className="w-72 flex flex-col gap-4 flex-shrink-0">
+          <div className="w-full lg:w-72 flex flex-col gap-4 flex-shrink-0">
             {/* Total Exercise */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
@@ -339,63 +333,65 @@ export default function Workout() {
               </div>
             </div>
 
-            {/* Muscle Groups breakdown */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Activity size={16} className="text-orange-500" />
-                <h3 className="text-sm font-bold text-gray-800">Muscle Groups</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+              {/* Muscle Groups breakdown */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Activity size={16} className="text-orange-500" />
+                  <h3 className="text-sm font-bold text-gray-800">Muscle Groups</h3>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {muscleGroupCounts.length === 0 ? (
+                    <p className="text-xs text-gray-400">No data yet.</p>
+                  ) : (
+                    muscleGroupCounts.map(([name, count]) => (
+                      <div key={name} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{name}</span>
+                        <span className="text-xs font-semibold text-orange-500">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                {muscleGroupCounts.length === 0 ? (
-                  <p className="text-xs text-gray-400">No data yet.</p>
-                ) : (
-                  muscleGroupCounts.map(([name, count]) => (
-                    <div key={name} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">{name}</span>
-                      <span className="text-xs font-semibold text-orange-500">{count}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
 
-            {/* Equipment breakdown */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Wrench size={16} className="text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800">Equipment</h3>
+              {/* Equipment breakdown */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Wrench size={16} className="text-blue-500" />
+                  <h3 className="text-sm font-bold text-gray-800">Equipment</h3>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {equipmentCounts.length === 0 ? (
+                    <p className="text-xs text-gray-400">No data yet.</p>
+                  ) : (
+                    equipmentCounts.map(([name, count]) => (
+                      <div key={name} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{name}</span>
+                        <span className="text-xs font-semibold text-blue-500">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                {equipmentCounts.length === 0 ? (
-                  <p className="text-xs text-gray-400">No data yet.</p>
-                ) : (
-                  equipmentCounts.map(([name, count]) => (
-                    <div key={name} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">{name}</span>
-                      <span className="text-xs font-semibold text-blue-500">{count}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
 
-            {/* Difficulty breakdown */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Gauge size={16} className="text-purple-500" />
-                <h3 className="text-sm font-bold text-gray-800">Difficulty</h3>
-              </div>
-              <div className="flex flex-col gap-2">
-                {difficultyCounts.length === 0 ? (
-                  <p className="text-xs text-gray-400">No data yet.</p>
-                ) : (
-                  difficultyCounts.map(([name, count]) => (
-                    <div key={name} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">{name}</span>
-                      <span className="text-xs font-semibold text-purple-500">{count}</span>
-                    </div>
-                  ))
-                )}
+              {/* Difficulty breakdown */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Gauge size={16} className="text-purple-500" />
+                  <h3 className="text-sm font-bold text-gray-800">Difficulty</h3>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {difficultyCounts.length === 0 ? (
+                    <p className="text-xs text-gray-400">No data yet.</p>
+                  ) : (
+                    difficultyCounts.map(([name, count]) => (
+                      <div key={name} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{name}</span>
+                        <span className="text-xs font-semibold text-purple-500">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -404,8 +400,8 @@ export default function Workout() {
 
       {/* Add Exercise Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
-          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl my-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[480px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Add New Exercise</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -479,7 +475,7 @@ export default function Workout() {
                 />
               </div>
               <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-600">
-                💡 Video upload is available after saving — open this exercise again via the Edit (pencil) button.
+                Video upload is available after saving — open this exercise again via the Edit (pencil) button.
               </div>
               <div className="flex gap-3 mt-2">
                 <button
@@ -503,8 +499,8 @@ export default function Workout() {
 
       {/* Exercise Detail Modal */}
       {showDetailModal && selectedExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
-          <div className="bg-white rounded-2xl p-8 w-[420px] shadow-xl my-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[420px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">{selectedExercise.name}</h2>
               <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -561,8 +557,8 @@ export default function Workout() {
 
       {/* Edit Modal */}
       {showEditModal && selectedExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
-          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl my-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[480px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Edit Exercise</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">

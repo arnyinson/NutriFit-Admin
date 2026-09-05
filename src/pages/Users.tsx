@@ -61,7 +61,7 @@ export default function Users() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       loadUsers();
-    }, 300); // debounce para sa search
+    }, 300); // debounce for search
     return () => clearTimeout(timeout);
   }, [loadUsers]);
 
@@ -82,128 +82,124 @@ export default function Users() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar active="User" />
 
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-            <p className="text-sm text-gray-400 mt-1">Manage and monitor all NutriFit users</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">A</div>
-              <span className="text-sm font-medium text-gray-700">Admin</span>
-            </div>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
+          <p className="text-sm text-gray-400 mt-1">Manage and monitor all NutriFit users</p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-          <div className="flex items-center gap-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 mb-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
-              <Search size={16} className="text-gray-400" />
+              <Search size={16} className="text-gray-400 flex-shrink-0" />
               <input
-                className="flex-1 py-2.5 bg-transparent outline-none text-sm text-gray-700"
+                className="flex-1 py-2.5 bg-transparent outline-none text-sm text-gray-700 min-w-0"
                 placeholder="Search user by name or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <select
-              className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
-              value={goalFilter}
-              onChange={(e) => setGoalFilter(e.target.value)}
-            >
-              <option>All Goal</option>
-              <option>Cutting</option>
-              <option>Bulking</option>
-              <option>Maintenance</option>
-            </select>
-            <select
-              className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
+            <div className="flex gap-3">
+              <select
+                className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                value={goalFilter}
+                onChange={(e) => setGoalFilter(e.target.value)}
+              >
+                <option>All Goal</option>
+                <option>Cutting</option>
+                <option>Bulking</option>
+                <option>Maintenance</option>
+              </select>
+              <select
+                className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option>All Status</option>
+                <option>Active</option>
+                <option>Inactive</option>
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Name', 'Email', 'Age', 'Goal', 'Weight', 'Status', 'Action'].map((h) => (
-                  <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
-                    Loading users...
-                  </td>
+                  {['Name', 'Email', 'Age', 'Goal', 'Weight', 'Status', 'Action'].map((h) => (
+                    <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ) : paginatedUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
-                    No users found.
-                  </td>
-                </tr>
-              ) : (
-                paginatedUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-600">
-                          {user.name[0]}
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">{user.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{user.email}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{user.age ?? '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{user.dietary_goal}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{user.weight} kg</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-xs font-bold px-3 py-1 rounded-full ${
-                          user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
-                        }`}
-                      >
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => toggleStatus(user.id, user.is_active)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                          user.is_active
-                            ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                            : 'bg-green-50 text-green-600 hover:bg-green-100'
-                        }`}
-                      >
-                        {user.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
+                      Loading users...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : paginatedUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
+                      No users found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedUsers.map((user) => (
+                    <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0">
+                            {user.name[0]}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{user.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.email}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{user.age ?? '—'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.weight} kg</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${
+                            user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
+                          }`}
+                        >
+                          {user.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => toggleStatus(user.id, user.is_active)}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                            user.is_active
+                              ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                              : 'bg-green-50 text-green-600 hover:bg-green-100'
+                          }`}
+                        >
+                          {user.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
             <p className="text-sm text-gray-400">
               Showing {paginatedUsers.length} of {users.length} users
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-center">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
