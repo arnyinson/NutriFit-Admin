@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Eye, Pencil, Trash2, X, Play,
-  Dumbbell, ClipboardList, Activity, Star,
+  Dumbbell, Activity, Wrench, Gauge,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
@@ -58,7 +58,7 @@ export default function Workout() {
     return () => clearTimeout(timeout);
   }, [loadExercises]);
 
-  // Dynamic top muscle groups computed from the currently loaded full list
+  // Dynamic breakdown counts computed from the currently loaded full list
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   useEffect(() => {
     const loadAll = async () => {
@@ -81,21 +81,23 @@ export default function Workout() {
     }
   };
 
-  const muscleGroupCounts = allExercises.reduce((acc: Record<string, number>, e) => {
-    acc[e.muscle_group] = (acc[e.muscle_group] || 0) + 1;
-    return acc;
-  }, {});
-  const topMuscleGroups = Object.entries(muscleGroupCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([name, count]) => ({ name, count }));
+  const countBy = (key: 'muscle_group' | 'equipment' | 'difficulty') => {
+    const counts = allExercises.reduce((acc: Record<string, number>, e) => {
+      acc[e[key]] = (acc[e[key]] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  };
 
-  const stats = [
-    { label: 'Total Exercise', value: String(allExercises.length), Icon: Dumbbell, color: 'text-green-500', bg: 'bg-green-50' },
-    { label: 'Muscle Groups', value: String(Object.keys(muscleGroupCounts).length), Icon: Activity, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { label: 'Beginner Friendly', value: String(allExercises.filter((e) => e.difficulty === 'Beginner').length), Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'Top Muscle Group', value: topMuscleGroups[0]?.name || '—', Icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-  ];
+  const muscleGroupCounts = countBy('muscle_group');
+  const equipmentCounts = countBy('equipment');
+  const difficultyCounts = countBy('difficulty');
+
+  const getDifficultyColor = (difficulty: string) => {
+    if (difficulty === 'Beginner') return 'bg-green-50 text-green-600';
+    if (difficulty === 'Intermediate') return 'bg-orange-50 text-orange-500';
+    return 'bg-red-50 text-red-500';
+  };
 
   const handleAdd = async () => {
     if (!newExercise.name) return;
@@ -139,6 +141,7 @@ export default function Workout() {
       setExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
       setAllExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
       setShowEditModal(false);
+      refreshAllExercises();
     } catch (err) {
       console.error('Update exercise error:', err);
       alert('Unable to update exercise. Please try again.');
@@ -179,12 +182,6 @@ export default function Workout() {
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    if (difficulty === 'Beginner') return 'bg-green-50 text-green-600';
-    if (difficulty === 'Intermediate') return 'bg-orange-50 text-orange-500';
-    return 'bg-red-50 text-red-500';
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar active="Workout" />
@@ -204,35 +201,19 @@ export default function Workout() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center`}>
-                  <stat.Icon size={22} className={stat.color} />
-                </div>
-                <div>
-                  <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-6">
+        {/* Main content: table on the left, breakdown stats stacked on the right */}
+        <div className="flex gap-6 items-start">
           {/* Exercise Table */}
-          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0">
             {/* Table Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-wrap gap-3">
               <h2 className="text-base font-bold text-gray-800">Exercise</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
                   <Search size={16} className="text-gray-400" />
                   <input
-                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-36"
-                    placeholder="Search exercises..."
+                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-64"
+                    placeholder="Search exercises, muscle groups, equipment..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -275,86 +256,147 @@ export default function Workout() {
               </div>
             </div>
 
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  {['Exercise Name', 'Muscle Groups', 'Equipment', 'Difficulty', 'Action'].map((h) => (
-                    <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">Loading exercises...</td>
+                    {['Exercise Name', 'Muscle Groups', 'Equipment', 'Difficulty', 'Action'].map((h) => (
+                      <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ) : exercises.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">No exercises found.</td>
-                  </tr>
-                ) : (
-                  exercises.map((exercise) => (
-                    <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-                            <Dumbbell size={18} className="text-green-600" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-700">{exercise.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{exercise.muscle_group}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{exercise.equipment}</td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>
-                          {exercise.difficulty}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => { setSelectedExercise(exercise); setShowDetailModal(true); }}
-                            className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            onClick={() => { setSelectedExercise({ ...exercise }); setShowEditModal(true); }}
-                            className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(exercise.id)}
-                            className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">Loading exercises...</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : exercises.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">No exercises found.</td>
+                    </tr>
+                  ) : (
+                    exercises.map((exercise) => (
+                      <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                              <Dumbbell size={18} className="text-green-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">{exercise.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{exercise.muscle_group}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{exercise.equipment}</td>
+                        <td className="px-6 py-4">
+                          <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>
+                            {exercise.difficulty}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => { setSelectedExercise(exercise); setShowDetailModal(true); }}
+                              className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => { setSelectedExercise({ ...exercise }); setShowEditModal(true); }}
+                              className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(exercise.id)}
+                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          {/* Top Muscle Groups */}
-          <div className="w-56 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-fit">
-            <h3 className="text-sm font-bold text-gray-800 mb-4">Top Muscle Groups</h3>
-            <div className="flex flex-col gap-3">
-              {topMuscleGroups.length === 0 ? (
-                <p className="text-xs text-gray-400">No data yet.</p>
-              ) : (
-                topMuscleGroups.map((mg, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">{mg.name}</span>
-                    <span className="text-xs font-semibold text-green-500">{mg.count} exercise</span>
-                  </div>
-                ))
-              )}
+          {/* Right column: Total + breakdowns, stacked */}
+          <div className="w-72 flex flex-col gap-4 flex-shrink-0">
+            {/* Total Exercise */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-50 w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Dumbbell size={22} className="text-green-500" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-green-500">{allExercises.length}</p>
+                  <p className="text-xs text-gray-500">Total Exercise</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Muscle Groups breakdown */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Activity size={16} className="text-orange-500" />
+                <h3 className="text-sm font-bold text-gray-800">Muscle Groups</h3>
+              </div>
+              <div className="flex flex-col gap-2">
+                {muscleGroupCounts.length === 0 ? (
+                  <p className="text-xs text-gray-400">No data yet.</p>
+                ) : (
+                  muscleGroupCounts.map(([name, count]) => (
+                    <div key={name} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">{name}</span>
+                      <span className="text-xs font-semibold text-orange-500">{count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Equipment breakdown */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Wrench size={16} className="text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-800">Equipment</h3>
+              </div>
+              <div className="flex flex-col gap-2">
+                {equipmentCounts.length === 0 ? (
+                  <p className="text-xs text-gray-400">No data yet.</p>
+                ) : (
+                  equipmentCounts.map(([name, count]) => (
+                    <div key={name} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">{name}</span>
+                      <span className="text-xs font-semibold text-blue-500">{count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Difficulty breakdown */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Gauge size={16} className="text-purple-500" />
+                <h3 className="text-sm font-bold text-gray-800">Difficulty</h3>
+              </div>
+              <div className="flex flex-col gap-2">
+                {difficultyCounts.length === 0 ? (
+                  <p className="text-xs text-gray-400">No data yet.</p>
+                ) : (
+                  difficultyCounts.map(([name, count]) => (
+                    <div key={name} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">{name}</span>
+                      <span className="text-xs font-semibold text-purple-500">{count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -362,8 +404,8 @@ export default function Workout() {
 
       {/* Add Exercise Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Add New Exercise</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -461,8 +503,8 @@ export default function Workout() {
 
       {/* Exercise Detail Modal */}
       {showDetailModal && selectedExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-[420px] shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-2xl p-8 w-[420px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">{selectedExercise.name}</h2>
               <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -519,8 +561,8 @@ export default function Workout() {
 
       {/* Edit Modal */}
       {showEditModal && selectedExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-2xl p-8 w-[480px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Edit Exercise</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
