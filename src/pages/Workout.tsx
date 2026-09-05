@@ -20,8 +20,8 @@ export default function Workout() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [muscleFilter, setMuscleFilter] = useState('All Groups');
-  const [equipmentFilter, setEquipmentFilter] = useState('All Levels');
+  const [muscleFilter, setMuscleFilter] = useState('Muscle Groups');
+  const [equipmentFilter, setEquipmentFilter] = useState('Equipment');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -39,8 +39,8 @@ export default function Workout() {
     try {
       const params: Record<string, string> = {};
       if (search) params.search = search;
-      if (muscleFilter !== 'All Groups') params.muscle_group = muscleFilter;
-      if (equipmentFilter !== 'All Levels') params.equipment = equipmentFilter;
+      if (muscleFilter !== 'Muscle Groups') params.muscle_group = muscleFilter;
+      if (equipmentFilter !== 'Equipment') params.equipment = equipmentFilter;
 
       const res = await api.get('/workouts', { params });
       setExercises(res.data.exercises);
@@ -223,7 +223,7 @@ export default function Workout() {
                   value={muscleFilter}
                   onChange={(e) => setMuscleFilter(e.target.value)}
                 >
-                  <option>All Groups</option>
+                  <option>Muscle Groups</option>
                   <option>Chest</option>
                   <option>Back</option>
                   <option>Legs</option>
@@ -240,7 +240,7 @@ export default function Workout() {
                   value={equipmentFilter}
                   onChange={(e) => setEquipmentFilter(e.target.value)}
                 >
-                  <option>All Levels</option>
+                  <option>Equipment</option>
                   <option>Barbell</option>
                   <option>Dumbbell</option>
                   <option>Bodyweight</option>
