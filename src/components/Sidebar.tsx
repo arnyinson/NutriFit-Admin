@@ -46,8 +46,12 @@ export default function Sidebar({ active }: { active: string }) {
       </nav>
 
       {/* Logout */}
-      <button
-  onClick={() => navigate('/login')}
+      {/* Logout */}
+<button
+  onClick={() => {
+    localStorage.removeItem('adminToken');
+    navigate('/login');
+  }}
   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
 >
   <LogOut size={18} />
