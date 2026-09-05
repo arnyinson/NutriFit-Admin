@@ -223,11 +223,11 @@ export default function MealPlan() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px]">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'Macros P/C/F', 'Actions'].map((h) => (
-                      <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'P/C/F', 'Actions'].map((h) => (
+                      <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                         {h}
                       </th>
                     ))}
@@ -236,27 +236,27 @@ export default function MealPlan() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">Loading meals...</td>
+                      <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">Loading meals...</td>
                     </tr>
                   ) : meals.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No meals found.</td>
+                      <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">No meals found.</td>
                     </tr>
                   ) : (
                     meals.map((meal) => (
                       <tr key={meal.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-                              <Utensils size={18} className="text-orange-500" />
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                              <Utensils size={13} className="text-orange-500" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{meal.name}</span>
+                            <span className="font-medium text-gray-700">{meal.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{meal.meal_type}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-3 text-gray-500">{meal.meal_type}</td>
+                        <td className="px-3 py-3">
                           <span
-                            className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
                               meal.category === 'Protein'
                                 ? 'bg-green-50 text-green-600'
                                 : meal.category === 'Carbs'
@@ -269,12 +269,12 @@ export default function MealPlan() {
                             {meal.category}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{meal.calories} kcal</td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-3 text-gray-500 whitespace-nowrap">{meal.calories} kcal</td>
+                        <td className="px-3 py-3">
                           {meal.allergens && meal.allergens.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {meal.allergens.map((a, i) => (
-                                <span key={i} className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">
+                                <span key={i} className="text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full">
                                   {a}
                                 </span>
                               ))}
@@ -283,16 +283,16 @@ export default function MealPlan() {
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                          {meal.protein}g/{meal.carbs}g/{meal.fats}g
+                        <td className="px-3 py-3 text-gray-500 whitespace-nowrap text-xs">
+                          {meal.protein}/{meal.carbs}/{meal.fats}g
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1">
                             <button onClick={() => handleEdit(meal)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors">
-                              <Pencil size={16} />
+                              <Pencil size={14} />
                             </button>
                             <button onClick={() => handleDelete(meal.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
-                              <Trash2 size={16} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
