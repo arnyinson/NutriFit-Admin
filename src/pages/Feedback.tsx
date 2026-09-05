@@ -74,22 +74,22 @@ export default function Feedback() {
     return 'bg-blue-50 text-blue-500';
   };
 
-const handleView = async (ticket: Ticket) => {
-  setSelectedTicket(ticket);
-  setResponse(ticket.admin_response || '');
-  setShowViewModal(true);
+  const handleView = async (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setResponse(ticket.admin_response || '');
+    setShowViewModal(true);
 
-  // Awtomatikong palitan mula "New" papuntang "Pending" sa sandaling buksan ito ng admin
-  if (ticket.status === 'New') {
-    try {
-      await api.patch(`/tickets/${ticket.id}/status`, { status: 'Pending' });
-      setSelectedTicket((prev) => (prev ? { ...prev, status: 'Pending' } : prev));
-      loadTickets(); // i-refresh ang buong listahan AT ang summary counts
-    } catch (err) {
-      console.error('Auto-update to Pending error:', err);
+    // Awtomatikong palitan mula "New" papuntang "Pending" sa sandaling buksan ito ng admin
+    if (ticket.status === 'New') {
+      try {
+        await api.patch(`/tickets/${ticket.id}/status`, { status: 'Pending' });
+        setSelectedTicket((prev) => (prev ? { ...prev, status: 'Pending' } : prev));
+        loadTickets(); // i-refresh ang buong listahan AT ang summary counts
+      } catch (err) {
+        console.error('Auto-update to Pending error:', err);
+      }
     }
-  }
-};
+  };
 
   const handleResolve = async () => {
     if (!selectedTicket) return;
@@ -225,7 +225,7 @@ const handleView = async (ticket: Ticket) => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['User', 'Message', 'Date', 'Status', 'Action'].map((h) => (
+                {['Ticket ID', 'User', 'Message', 'Date', 'Status', 'Action'].map((h) => (
                   <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     {h}
                   </th>
@@ -235,15 +235,18 @@ const handleView = async (ticket: Ticket) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
                 </tr>
               ) : paginatedTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
                 </tr>
               ) : (
                 paginatedTickets.map((ticket) => (
                   <tr key={ticket.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-mono font-semibold text-gray-500">#{ticket.id.slice(0, 8).toUpperCase()}</span>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
@@ -314,7 +317,10 @@ const handleView = async (ticket: Ticket) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 w-[520px] shadow-xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-gray-800">Ticket Details</h2>
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Ticket Details</h2>
+                <p className="text-xs font-mono text-gray-400 mt-0.5">#{selectedTicket.id.slice(0, 8).toUpperCase()}</p>
+              </div>
               <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
