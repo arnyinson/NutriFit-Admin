@@ -62,17 +62,17 @@ export default function Sidebar({ active }: { active: string }) {
         />
       )}
 
-      {/* Sidebar — palaging visible sa desktop (lg+), naka-drawer sa mobile */}
+      {/* Sidebar — TALAGANG fixed sa screen, hindi na gumagalaw kahit anong scroll ng content */}
       <div
-        className={`w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-sm
-          fixed lg:sticky top-0 left-0 z-50 transition-transform duration-200
+        className={`w-56 h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-sm
+          fixed top-0 left-0 z-50 transition-transform duration-200 overflow-y-auto
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* Logo — clickable, mapupunta sa dashboard */}
         <button
           onClick={() => handleNavClick('/dashboard')}
-          className="flex items-center gap-2 mb-10 px-2 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 mb-10 px-2 hover:opacity-80 transition-opacity flex-shrink-0"
         >
           <Logo size={32} />
           <span className="text-xl font-bold text-green-500">NutriFit</span>
@@ -99,8 +99,8 @@ export default function Sidebar({ active }: { active: string }) {
           })}
         </nav>
 
-        {/* Admin Profile — may dropdown */}
-       <div className="relative mt-4 pt-4 border-t border-gray-100" ref={profileMenuRef}>
+    
+        <div className="relative mt-4 pt-4 border-t border-gray-100 flex-shrink-0" ref={profileMenuRef}>
           {showProfileMenu && (
             <div className="absolute bottom-full mb-2 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-50">
@@ -128,6 +128,8 @@ export default function Sidebar({ active }: { active: string }) {
           </button>
         </div>
       </div>
+
+      <div className="hidden lg:block w-56 flex-shrink-0" />
     </>
   );
 }
