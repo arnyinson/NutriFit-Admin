@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Archive, RotateCcw } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 
@@ -12,6 +12,8 @@ type User = {
   dietary_goal: string;
   weight: string;
   is_active: boolean;
+  archived: boolean;
+  last_login: string | null;
 };
 
 const PAGE_SIZE = 10;
@@ -42,7 +44,14 @@ export default function Users() {
       const params: Record<string, string> = {};
       if (search) params.search = search;
       if (goalFilter !== 'All Goal') params.dietary_goal = goalFilter;
-      if (statusFilter !== 'All Status') params.is_active = statusFilter === 'Active' ? 'true' : 'false';
+
+      if (statusFilter === 'Archived') {
+        params.archived = 'true';
+      } else if (statusFilter === 'Active') {
+        params.is_active = 'true';
+      } else if (statusFilter === 'Inactive') {
+        params.is_active = 'false';
+      }
 
       const res = await api.get('/users', { params });
       const withAge = res.data.users.map((u: User) => ({
@@ -75,6 +84,40 @@ export default function Users() {
     }
   };
 
+  const handleUnarchive = async (id: string) => {
+    const previous = users;
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, archived: false } : u)));
+    try {
+      await api.patch(`/users/${id}/unarchive`);
+      // If currently filtering by "Archived", the row should disappear from the list
+      if (statusFilter === 'Archived') {
+        loadUsers();
+      }
+    } catch (err) {
+      console.error('Unarchive error:', err);
+      setUsers(previous);
+    }
+  };
+
+  const getStatusLabel = (user: User) => {
+    if (user.archived) return 'Archived';
+    return user.is_active ? 'Active' : 'Inactive';
+  };
+
+  const getStatusColor = (user: User) => {
+    if (user.archived) return 'text-gray-500 bg-gray-100';
+    return user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50';
+  };
+
+  const formatLastLogin = (isoDate: string | null) => {
+    if (!isoDate) return 'Never';
+    const date = new Date(isoDate);
+    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysAgo === 0) return 'Today';
+    if (daysAgo === 1) return 'Yesterday';
+    return `${daysAgo} days ago`;
+  };
+
   const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
   const paginatedUsers = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -86,7 +129,9 @@ export default function Users() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-          <p className="text-sm text-gray-400 mt-1">Manage and monitor all NutriFit users</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Manage and monitor all NutriFit users. Users inactive for 30+ days are automatically archived.
+          </p>
         </div>
 
         {/* Filters */}
@@ -120,6 +165,7 @@ export default function Users() {
                 <option>All Status</option>
                 <option>Active</option>
                 <option>Inactive</option>
+                <option>Archived</option>
               </select>
             </div>
           </div>
@@ -128,10 +174,10 @@ export default function Users() {
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Name', 'Email', 'Age', 'Goal', 'Weight', 'Status', 'Action'].map((h) => (
+                  {['Name', 'Email', 'Age', 'Goal', 'Last Login', 'Status', 'Action'].map((h) => (
                     <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
@@ -153,7 +199,7 @@ export default function Users() {
                   </tr>
                 ) : (
                   paginatedUsers.map((user) => (
-                    <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr key={user.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${user.archived ? 'opacity-70' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0">
@@ -165,27 +211,36 @@ export default function Users() {
                       <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.email}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{user.age ?? '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.weight} kg</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{formatLastLogin(user.last_login)}</td>
                       <td className="px-6 py-4">
                         <span
-                          className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${
-                            user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
-                          }`}
+                          className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(user)}`}
                         >
-                          {user.is_active ? 'Active' : 'Inactive'}
+                          {user.archived && <Archive size={11} />}
+                          {getStatusLabel(user)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => toggleStatus(user.id, user.is_active)}
-                          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-                            user.is_active
-                              ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                              : 'bg-green-50 text-green-600 hover:bg-green-100'
-                          }`}
-                        >
-                          {user.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
+                        {user.archived ? (
+                          <button
+                            onClick={() => handleUnarchive(user.id)}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          >
+                            <RotateCcw size={13} />
+                            Unarchive
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => toggleStatus(user.id, user.is_active)}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                              user.is_active
+                                ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                                : 'bg-green-50 text-green-600 hover:bg-green-100'
+                            }`}
+                          >
+                            {user.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
