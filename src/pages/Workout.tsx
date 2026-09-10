@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Eye, Pencil, Trash2, X, Play,
-  Dumbbell, Activity, Wrench, Gauge,
+  Dumbbell, Activity, Wrench, Gauge, CheckCircle, AlertCircle,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
@@ -278,7 +278,15 @@ export default function Workout() {
                             <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
                               <Dumbbell size={18} className="text-green-600" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{exercise.name}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{exercise.name}</span>
+                              {!exercise.video_url && (
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"
+                                  title="Using automatic GIF fallback — no custom video uploaded"
+                                />
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{exercise.muscle_group}</td>
@@ -529,19 +537,33 @@ export default function Workout() {
                 <p className="text-sm text-gray-700 whitespace-pre-line">{selectedExercise.instructions}</p>
               </div>
               {selectedExercise.video_url ? (
-                <video
-                  src={selectedExercise.video_url}
-                  controls
-                  className="w-full rounded-xl bg-black"
-                  style={{ maxHeight: 220 }}
-                />
-              ) : (
-                <div className="bg-gray-900 rounded-xl p-8 flex flex-col items-center justify-center text-white gap-2">
-                  <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
-                    <Play size={26} fill="white" />
+                <div>
+                  <video
+                    src={selectedExercise.video_url}
+                    controls
+                    className="w-full rounded-xl bg-black"
+                    style={{ maxHeight: 220 }}
+                  />
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-green-600 font-medium">
+                    <CheckCircle size={13} />
+                    Custom video uploaded
                   </div>
-                  <p className="text-sm font-medium">Video Demonstration</p>
-                  <p className="text-xs text-gray-400">No video uploaded yet</p>
+                </div>
+              ) : (
+                <div>
+                  <div className="bg-gray-900 rounded-xl p-8 flex flex-col items-center justify-center text-white gap-2">
+                    <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
+                      <Play size={26} fill="white" />
+                    </div>
+                    <p className="text-sm font-medium">No Custom Video</p>
+                    <p className="text-xs text-gray-400 text-center">
+                      The mobile app will automatically show a matching GIF demo from ExerciseDB instead
+                    </p>
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-orange-500 font-medium">
+                    <AlertCircle size={13} />
+                    Using automatic fallback — upload a video for better quality
+                  </div>
                 </div>
               )}
               <button
