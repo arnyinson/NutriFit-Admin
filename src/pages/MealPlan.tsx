@@ -85,7 +85,6 @@ export default function MealPlan() {
     loadOutsideLogs();
   }, [loadOutsideLogs]);
 
-  // Live stats computed from the currently loaded meals
   const totalMeals = meals.length;
   const proteinMeals = meals.filter((m) => m.category === 'Protein').length;
   const withAllergens = meals.filter((m) => m.allergens && m.allergens.length > 0).length;
@@ -171,7 +170,7 @@ export default function MealPlan() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar active="Meal Plan" />
+      <Sidebar active="Meal Plan Management" />
 
       <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
@@ -222,9 +221,9 @@ export default function MealPlan() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-[560px]">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
                   <tr>
                     {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'P/C/F', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">

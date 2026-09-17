@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, MessageSquare, Sparkles, CheckCircle2, Clock,
-  X, Star, ChevronLeft, ChevronRight,
+  X, ChevronLeft, ChevronRight, ImageIcon,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
@@ -14,8 +14,8 @@ type Ticket = {
   created_at: string;
   status: 'Pending' | 'Resolved' | 'New';
   type: string;
-  rating: number;
   admin_response: string | null;
+  image_url: string | null;
 };
 
 type Summary = {
@@ -40,6 +40,7 @@ export default function Feedback() {
   const [response, setResponse] = useState('');
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -79,12 +80,11 @@ export default function Feedback() {
     setResponse(ticket.admin_response || '');
     setShowViewModal(true);
 
-    // Auto-switch from "New" to "Pending" the moment the admin opens it
     if (ticket.status === 'New') {
       try {
         await api.patch(`/tickets/${ticket.id}/status`, { status: 'Pending' });
         setSelectedTicket((prev) => (prev ? { ...prev, status: 'Pending' } : prev));
-        loadTickets(); // refresh the full list AND the summary counts
+        loadTickets();
       } catch (err) {
         console.error('Auto-update to Pending error:', err);
       }
@@ -146,12 +146,12 @@ export default function Feedback() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar active="Feedback" />
+      <Sidebar active="Ticketing Support" />
 
       <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Feedback Management</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Ticketing Support</h1>
           <p className="text-sm text-gray-400 mt-1">Manage and review feedback submitted by mobile application users</p>
         </div>
 
@@ -215,10 +215,10 @@ export default function Feedback() {
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
+            <table className="w-full min-w-[760px]">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Ticket ID', 'User', 'Message', 'Date', 'Status', 'Action'].map((h) => (
+                  {['Ticket ID', 'User', 'Message', 'Image', 'Date', 'Status', 'Action'].map((h) => (
                     <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
@@ -228,11 +228,11 @@ export default function Feedback() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
                   </tr>
                 ) : paginatedTickets.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
                   </tr>
                 ) : (
                   paginatedTickets.map((ticket) => (
@@ -249,6 +249,18 @@ export default function Feedback() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{ticket.message}</td>
+                      <td className="px-6 py-4">
+                        {ticket.image_url ? (
+                          <button
+                            onClick={() => setViewingImage(ticket.image_url)}
+                            className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 hover:opacity-80 transition-opacity flex-shrink-0"
+                          >
+                            <img src={ticket.image_url} alt="Attachment" className="w-full h-full object-cover" />
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                         {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
@@ -335,25 +347,10 @@ export default function Feedback() {
                 </span>
               </div>
 
-              {/* Type & Rating */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 mb-1">Type</p>
-                  <p className="text-sm font-semibold text-gray-700">{selectedTicket.type}</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 mb-1">Rating</p>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        size={14}
-                        className={s <= selectedTicket.rating ? 'text-yellow-400' : 'text-gray-300'}
-                        fill={s <= selectedTicket.rating ? 'currentColor' : 'none'}
-                      />
-                    ))}
-                  </div>
-                </div>
+              {/* Type */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Type</p>
+                <p className="text-sm font-semibold text-gray-700">{selectedTicket.type}</p>
               </div>
 
               {/* Message */}
@@ -361,6 +358,21 @@ export default function Feedback() {
                 <p className="text-xs text-gray-400 mb-2">Message</p>
                 <p className="text-sm text-gray-700">{selectedTicket.message}</p>
               </div>
+
+              {/* Attached Image */}
+              {selectedTicket.image_url && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
+                    <ImageIcon size={13} /> Attached Screenshot
+                  </p>
+                  <button
+                    onClick={() => setViewingImage(selectedTicket.image_url)}
+                    className="block w-full rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity"
+                  >
+                    <img src={selectedTicket.image_url} alt="Attachment" className="w-full max-h-64 object-cover" />
+                  </button>
+                </div>
+              )}
 
               {/* Response */}
               <div>
@@ -401,6 +413,27 @@ export default function Feedback() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Full Image Viewer */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4"
+          onClick={() => setViewingImage(null)}
+        >
+          <button
+            onClick={() => setViewingImage(null)}
+            className="absolute top-6 right-6 text-white hover:text-gray-300"
+          >
+            <X size={28} />
+          </button>
+          <img
+            src={viewingImage}
+            alt="Full attachment"
+            className="max-w-full max-h-full rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

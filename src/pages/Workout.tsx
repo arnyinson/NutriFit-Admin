@@ -58,7 +58,6 @@ export default function Workout() {
     return () => clearTimeout(timeout);
   }, [loadExercises]);
 
-  // Dynamic breakdown counts computed from the currently loaded full list
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   useEffect(() => {
     const loadAll = async () => {
@@ -184,12 +183,12 @@ export default function Workout() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar active="Workout" />
+      <Sidebar active="Workout Plan Management" />
 
       <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Workout Management</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Workout Plan Management</h1>
           <p className="text-sm text-gray-400 mt-1">Manage workout and exercise templates for the system</p>
         </div>
 
@@ -250,9 +249,9 @@ export default function Workout() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-[560px]">
               <table className="w-full min-w-[640px]">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
                   <tr>
                     {['Exercise Name', 'Muscle Groups', 'Equipment', 'Difficulty', 'Action'].map((h) => (
                       <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">

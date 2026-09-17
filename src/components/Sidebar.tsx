@@ -5,10 +5,10 @@ import Logo from './Logo';
 
 const navItems = [
   { label: 'Dashboard', Icon: LayoutDashboard, path: '/dashboard' },
-  { label: 'User', Icon: Users, path: '/users' },
-  { label: 'Meal Plan', Icon: Utensils, path: '/meal-plan' },
-  { label: 'Workout', Icon: Dumbbell, path: '/workout' },
-  { label: 'Feedback', Icon: Ticket, path: '/feedback' },
+  { label: 'Account Management', Icon: Users, path: '/users' },
+  { label: 'Meal Plan Management', Icon: Utensils, path: '/meal-plan' },
+  { label: 'Workout Plan Management', Icon: Dumbbell, path: '/workout' },
+  { label: 'Ticketing Support', Icon: Ticket, path: '/feedback' },
 ];
 
 export default function Sidebar({ active }: { active: string }) {
@@ -17,7 +17,6 @@ export default function Sidebar({ active }: { active: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Isara ang profile dropdown kapag nag-click sa labas nito
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
@@ -40,7 +39,6 @@ export default function Sidebar({ active }: { active: string }) {
 
   return (
     <>
-      {/* Mobile top bar — makikita lang sa maliliit na screens */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 z-40">
         <div className="flex items-center gap-2">
           <Logo size={28} />
@@ -54,7 +52,6 @@ export default function Sidebar({ active }: { active: string }) {
         </button>
       </div>
 
-      {/* Overlay kapag bukas ang mobile menu */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/40 z-40"
@@ -62,14 +59,12 @@ export default function Sidebar({ active }: { active: string }) {
         />
       )}
 
-      {/* Sidebar — TALAGANG fixed sa screen, hindi na gumagalaw kahit anong scroll ng content */}
       <div
         className={`w-56 h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-sm
           fixed top-0 left-0 z-50 transition-transform duration-200 overflow-y-auto
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        {/* Logo — clickable, mapupunta sa dashboard */}
         <button
           onClick={() => handleNavClick('/dashboard')}
           className="flex items-center gap-2 mb-10 px-2 hover:opacity-80 transition-opacity flex-shrink-0"
@@ -78,7 +73,6 @@ export default function Sidebar({ active }: { active: string }) {
           <span className="text-xl font-bold text-green-500">NutriFit</span>
         </button>
 
-        {/* Nav Items */}
         <nav className="flex flex-col gap-1 flex-1">
           {navItems.map(item => {
             const isActive = active === item.label;
@@ -99,7 +93,6 @@ export default function Sidebar({ active }: { active: string }) {
           })}
         </nav>
 
-    
         <div className="relative mt-4 pt-4 border-t border-gray-100 flex-shrink-0" ref={profileMenuRef}>
           {showProfileMenu && (
             <div className="absolute bottom-full mb-2 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
@@ -128,8 +121,6 @@ export default function Sidebar({ active }: { active: string }) {
           </button>
         </div>
       </div>
-
-      <div className="hidden lg:block w-56 flex-shrink-0" />
     </>
   );
 }

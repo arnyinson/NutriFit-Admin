@@ -70,7 +70,7 @@ export default function Users() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       loadUsers();
-    }, 300); // debounce for search
+    }, 300);
     return () => clearTimeout(timeout);
   }, [loadUsers]);
 
@@ -89,7 +89,6 @@ export default function Users() {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, archived: false } : u)));
     try {
       await api.patch(`/users/${id}/unarchive`);
-      // If currently filtering by "Archived", the row should disappear from the list
       if (statusFilter === 'Archived') {
         loadUsers();
       }
@@ -123,12 +122,12 @@ export default function Users() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar active="User" />
+      <Sidebar active="Account Management" />
 
       <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Account Management</h1>
           <p className="text-sm text-gray-400 mt-1">
             Manage and monitor all NutriFit users. Users inactive for 30+ days are automatically archived.
           </p>
