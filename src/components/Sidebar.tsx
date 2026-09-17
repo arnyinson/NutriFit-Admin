@@ -15,7 +15,6 @@ export default function Sidebar({ active }: { active: string }) {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopOpen, setDesktopOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,24 +60,11 @@ export default function Sidebar({ active }: { active: string }) {
         />
       )}
 
-      {/* Desktop hover-trigger strip — hovering near the left edge reveals the sidebar */}
+      {/* Sidebar — fixed, always visible on desktop (lg+), drawer on mobile */}
       <div
-        className="hidden lg:block fixed top-0 left-0 w-3 h-screen z-40"
-        onMouseEnter={() => setDesktopOpen(true)}
-      />
-
-      {/* Small visible edge handle, always shown on desktop when sidebar is closed */}
-      {!desktopOpen && (
-        <div className="hidden lg:flex fixed top-1/2 -translate-y-1/2 left-0 w-1.5 h-16 bg-green-500 rounded-r-full z-40 pointer-events-none" />
-      )}
-
-      {/* Sidebar */}
-      <div
-        onMouseLeave={() => setDesktopOpen(false)}
-        className={`w-56 h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-xl
+        className={`w-56 h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-sm
           fixed top-0 left-0 z-50 transition-transform duration-200 overflow-y-auto
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${desktopOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         <button
@@ -137,6 +123,9 @@ export default function Sidebar({ active }: { active: string }) {
           </button>
         </div>
       </div>
+
+      {/* Spacer — reserves space in the layout so page content never sits under the fixed sidebar */}
+      <div className="hidden lg:block w-56 flex-shrink-0" />
     </>
   );
 }
