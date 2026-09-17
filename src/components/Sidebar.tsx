@@ -15,6 +15,7 @@ export default function Sidebar({ active }: { active: string }) {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function Sidebar({ active }: { active: string }) {
 
   return (
     <>
+      {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 z-40">
         <div className="flex items-center gap-2">
           <Logo size={28} />
@@ -59,10 +61,24 @@ export default function Sidebar({ active }: { active: string }) {
         />
       )}
 
+      {/* Desktop hover-trigger strip — hovering near the left edge reveals the sidebar */}
       <div
-        className={`w-56 h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-sm
+        className="hidden lg:block fixed top-0 left-0 w-3 h-screen z-40"
+        onMouseEnter={() => setDesktopOpen(true)}
+      />
+
+      {/* Small visible edge handle, always shown on desktop when sidebar is closed */}
+      {!desktopOpen && (
+        <div className="hidden lg:flex fixed top-1/2 -translate-y-1/2 left-0 w-1.5 h-16 bg-green-500 rounded-r-full z-40 pointer-events-none" />
+      )}
+
+      {/* Sidebar */}
+      <div
+        onMouseLeave={() => setDesktopOpen(false)}
+        className={`w-56 h-screen bg-white border-r border-gray-100 flex flex-col py-8 px-4 shadow-xl
           fixed top-0 left-0 z-50 transition-transform duration-200 overflow-y-auto
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${desktopOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'}
         `}
       >
         <button
