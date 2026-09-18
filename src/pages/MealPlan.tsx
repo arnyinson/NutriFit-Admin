@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, ShieldCheck, AlertTriangle, ListPlus } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, ShieldCheck, AlertTriangle, ListPlus, PlusCircle, MinusCircle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
+
+type Ingredient = {
+  name: string;
+  allergens: string[];
+};
+
+type SubIngredient = Ingredient & {
+  substitute_override: string | null;
+};
 
 type Meal = {
   id: string;
@@ -15,6 +24,8 @@ type Meal = {
   fats: number;
   ingredients: string[];
   instructions: string;
+  main_ingredients: Ingredient[];
+  sub_ingredients: SubIngredient[];
 };
 
 type OutsideFoodLog = {
@@ -30,6 +41,116 @@ type OutsideFoodLog = {
   username: string;
 };
 
+// Simple, reusable ingredient list editor — used for both Main and Sub ingredients,
+// in both the Add and Edit modals.
+type IngredientRow = { name: string; allergensText: string; substituteOverride?: string };
+
+function IngredientListEditor({
+  label,
+  hint,
+  rows,
+  onChange,
+  showSubstitute,
+}: {
+  label: string;
+  hint: string;
+  rows: IngredientRow[];
+  onChange: (rows: IngredientRow[]) => void;
+  showSubstitute?: boolean;
+}) {
+  const updateRow = (index: number, patch: Partial<IngredientRow>) => {
+    onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+  const addRow = () => {
+    onChange([...rows, { name: '', allergensText: '', substituteOverride: '' }]);
+  };
+  const removeRow = (index: number) => {
+    onChange(rows.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-xs font-semibold text-gray-500 block">{label}</label>
+        <button
+          type="button"
+          onClick={addRow}
+          className="flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700"
+        >
+          <PlusCircle size={14} /> Add
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-400 mb-2">{hint}</p>
+      <div className="flex flex-col gap-2">
+        {rows.length === 0 ? (
+          <p className="text-xs text-gray-400 italic">No ingredients added yet.</p>
+        ) : (
+          rows.map((row, i) => (
+            <div key={i} className="border border-gray-200 rounded-xl p-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-green-400"
+                  placeholder="Ingredient name (e.g. soy sauce)"
+                  value={row.name}
+                  onChange={(e) => updateRow(i, { name: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg flex-shrink-0"
+                >
+                  <MinusCircle size={16} />
+                </button>
+              </div>
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-green-400"
+                placeholder="Allergens (comma separated, e.g. Soy, Dairy) — leave blank if none"
+                value={row.allergensText}
+                onChange={(e) => updateRow(i, { allergensText: e.target.value })}
+              />
+              {showSubstitute && (
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-green-400"
+                  placeholder="Substitute for THIS meal only (optional — leave blank to use default substitute)"
+                  value={row.substituteOverride || ''}
+                  onChange={(e) => updateRow(i, { substituteOverride: e.target.value })}
+                />
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+const ingredientsToRows = (ingredients: Ingredient[]): IngredientRow[] =>
+  (ingredients || []).map((ing) => ({ name: ing.name, allergensText: (ing.allergens || []).join(', ') }));
+
+const subIngredientsToRows = (ingredients: SubIngredient[]): IngredientRow[] =>
+  (ingredients || []).map((ing) => ({
+    name: ing.name,
+    allergensText: (ing.allergens || []).join(', '),
+    substituteOverride: ing.substitute_override || '',
+  }));
+
+const rowsToIngredients = (rows: IngredientRow[]): Ingredient[] =>
+  rows
+    .filter((r) => r.name.trim())
+    .map((r) => ({
+      name: r.name.trim(),
+      allergens: r.allergensText ? r.allergensText.split(',').map((a) => a.trim()).filter(Boolean) : [],
+    }));
+
+const rowsToSubIngredients = (rows: IngredientRow[]): SubIngredient[] =>
+  rows
+    .filter((r) => r.name.trim())
+    .map((r) => ({
+      name: r.name.trim(),
+      allergens: r.allergensText ? r.allergensText.split(',').map((a) => a.trim()).filter(Boolean) : [],
+      substitute_override: r.substituteOverride?.trim() || null,
+    }));
+
 export default function MealPlan() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +163,11 @@ export default function MealPlan() {
   const [newMeal, setNewMeal] = useState({
     name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '', instructions: '',
   });
+  const [newMainRows, setNewMainRows] = useState<IngredientRow[]>([]);
+  const [newSubRows, setNewSubRows] = useState<IngredientRow[]>([]);
+
+  const [editMainRows, setEditMainRows] = useState<IngredientRow[]>([]);
+  const [editSubRows, setEditSubRows] = useState<IngredientRow[]>([]);
 
   const [outsideLogs, setOutsideLogs] = useState<OutsideFoodLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
@@ -102,10 +228,24 @@ export default function MealPlan() {
     return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   };
 
+  // Combine main + sub ingredient allergens into the flat top-level `allergens`
+  // array, so the existing allergen badge display stays accurate automatically.
+  const computeTopLevelAllergens = (mainRows: IngredientRow[], subRows: IngredientRow[]): string[] => {
+    const all = new Set<string>();
+    [...mainRows, ...subRows].forEach((r) => {
+      (r.allergensText || '').split(',').map((a) => a.trim()).filter(Boolean).forEach((a) => all.add(a));
+    });
+    return [...all];
+  };
+
   const handleAdd = async () => {
     if (!newMeal.name || !newMeal.calories) return;
     setSaving(true);
     try {
+      const mainIngredients = rowsToIngredients(newMainRows);
+      const subIngredients = rowsToSubIngredients(newSubRows);
+      const computedAllergens = computeTopLevelAllergens(newMainRows, newSubRows);
+
       await api.post('/meals', {
         name: newMeal.name,
         category: newMeal.category,
@@ -114,11 +254,15 @@ export default function MealPlan() {
         protein: Number(newMeal.protein) || 0,
         carbs: Number(newMeal.carbs) || 0,
         fats: Number(newMeal.fats) || 0,
-        allergens: newMeal.allergens ? newMeal.allergens.split(',').map((a) => a.trim()) : [],
+        allergens: computedAllergens,
         ingredients: [],
         instructions: newMeal.instructions,
+        main_ingredients: mainIngredients,
+        sub_ingredients: subIngredients,
       });
       setNewMeal({ name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '', instructions: '' });
+      setNewMainRows([]);
+      setNewSubRows([]);
       setShowAddModal(false);
       loadMeals();
     } catch (err) {
@@ -142,6 +286,8 @@ export default function MealPlan() {
 
   const handleEdit = (meal: Meal) => {
     setSelectedMeal({ ...meal });
+    setEditMainRows(ingredientsToRows(meal.main_ingredients || []));
+    setEditSubRows(subIngredientsToRows(meal.sub_ingredients || []));
     setShowEditModal(true);
   };
 
@@ -149,6 +295,10 @@ export default function MealPlan() {
     if (!selectedMeal) return;
     setSaving(true);
     try {
+      const mainIngredients = rowsToIngredients(editMainRows);
+      const subIngredients = rowsToSubIngredients(editSubRows);
+      const computedAllergens = computeTopLevelAllergens(editMainRows, editSubRows);
+
       await api.put(`/meals/${selectedMeal.id}`, {
         name: selectedMeal.name,
         category: selectedMeal.category,
@@ -157,8 +307,17 @@ export default function MealPlan() {
         carbs: Number(selectedMeal.carbs),
         fats: Number(selectedMeal.fats),
         instructions: selectedMeal.instructions,
+        allergens: computedAllergens,
+        main_ingredients: mainIngredients,
+        sub_ingredients: subIngredients,
       });
-      setMeals((prev) => prev.map((m) => (m.id === selectedMeal.id ? selectedMeal : m)));
+      setMeals((prev) =>
+        prev.map((m) =>
+          m.id === selectedMeal.id
+            ? { ...selectedMeal, allergens: computedAllergens, main_ingredients: mainIngredients, sub_ingredients: subIngredients }
+            : m
+        )
+      );
       setShowEditModal(false);
     } catch (err) {
       console.error('Update meal error:', err);
@@ -212,7 +371,11 @@ export default function MealPlan() {
                     <option>Fats</option>
                   </select>
                   <button
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => {
+                      setNewMainRows([]);
+                      setNewSubRows([]);
+                      setShowAddModal(true);
+                    }}
                     className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus size={16} /> <span className="hidden sm:inline">Add new meal</span><span className="sm:hidden">Add</span>
@@ -362,7 +525,7 @@ export default function MealPlan() {
       {/* Add Meal Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[480px] shadow-xl my-auto">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[520px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Add New Meal</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -406,7 +569,7 @@ export default function MealPlan() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">Calories (kcal)</label>
                   <input
@@ -417,17 +580,6 @@ export default function MealPlan() {
                     onChange={(e) => setNewMeal((p) => ({ ...p, calories: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Allergens (comma separated)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    placeholder="e.g. Soy, Wheat"
-                    value={newMeal.allergens}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, allergens: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">Protein (g)</label>
                   <input
@@ -448,17 +600,37 @@ export default function MealPlan() {
                     onChange={(e) => setNewMeal((p) => ({ ...p, carbs: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Fats (g)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    placeholder="0"
-                    type="number"
-                    value={newMeal.fats}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, fats: e.target.value }))}
-                  />
-                </div>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Fats (g)</label>
+                <input
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
+                  placeholder="0"
+                  type="number"
+                  value={newMeal.fats}
+                  onChange={(e) => setNewMeal((p) => ({ ...p, fats: e.target.value }))}
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <IngredientListEditor
+                  label="Main Ingredients"
+                  hint="Defines the dish (e.g. chicken, beef, tofu). If any has an allergen, the whole meal is excluded — no substitute possible."
+                  rows={newMainRows}
+                  onChange={setNewMainRows}
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <IngredientListEditor
+                  label="Sub Ingredients"
+                  hint="Seasonings, sauces, extras (e.g. soy sauce, milk). If any has an allergen, a substitute will be used automatically to keep the meal on the plan."
+                  rows={newSubRows}
+                  onChange={setNewSubRows}
+                  showSubstitute
+                />
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions</label>
                 <textarea
@@ -491,7 +663,7 @@ export default function MealPlan() {
       {/* Edit Meal Modal */}
       {showEditModal && selectedMeal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[480px] shadow-xl my-auto">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[520px] shadow-xl my-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Edit Meal</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -560,6 +732,26 @@ export default function MealPlan() {
                   />
                 </div>
               </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <IngredientListEditor
+                  label="Main Ingredients"
+                  hint="Defines the dish (e.g. chicken, beef, tofu). If any has an allergen, the whole meal is excluded — no substitute possible."
+                  rows={editMainRows}
+                  onChange={setEditMainRows}
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <IngredientListEditor
+                  label="Sub Ingredients"
+                  hint="Seasonings, sauces, extras (e.g. soy sauce, milk). If any has an allergen, a substitute will be used automatically to keep the meal on the plan."
+                  rows={editSubRows}
+                  onChange={setEditSubRows}
+                  showSubstitute
+                />
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions</label>
                 <textarea
