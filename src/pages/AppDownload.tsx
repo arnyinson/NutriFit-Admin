@@ -3,8 +3,7 @@ import { useEffect } from 'react';
 import { Salad, Dumbbell, ShieldCheck, LineChart, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '../components/Logo';
 
-// Palitan ito ng totoong download link ng APK (Expo/EAS build link, o Google Drive link)
-const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/arnyinson/projects/NutriFit/builds/0aeae059-0b94-4edf-a1e8-7ecc77c88a6d';
+const APK_DOWNLOAD_URL = 'https://drive.google.com/uc?export=download&id=1H_FaqO1c5fEMjU9A6lNOhs8fx419RYST';
 
 const SCREENS = [
   { src: '/dashboard.jpg', label: 'Dashboard' },
@@ -145,6 +144,7 @@ export default function AppDownload() {
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a
+                             
                 href={APK_DOWNLOAD_URL}
                 className="nf-body inline-flex items-center gap-2 text-white font-semibold px-6 py-3.5 rounded-xl transition-colors"
                 style={{ background: 'var(--nf-green)' }}
@@ -154,9 +154,6 @@ export default function AppDownload() {
                 Get the App
                 <ArrowRight size={18} />
               </a>
-              <span className="nf-body text-sm" style={{ color: '#6B7A70' }}>
-                Android &middot; Free &middot; No account needed to browse
-              </span>
             </div>
           </div>
 
