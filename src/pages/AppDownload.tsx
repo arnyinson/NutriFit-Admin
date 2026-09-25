@@ -6,13 +6,13 @@ import Logo from '../components/Logo';
 const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/arnyinson/projects/NutriFit/builds/0aeae059-0b94-4edf-a1e8-7ecc77c88a6d';
 
 const SCREENS = [
-  { src: '/app-screens/dashboard.jpg', label: 'Dashboard' },
-  { src: '/app-screens/meal.jpg', label: 'Meal Plan' },
-  { src: '/app-screens/workout.jpg', label: 'Workout' },
-  { src: '/app-screens/progress.jpg', label: 'Progress' },
-  { src: '/app-screens/achievements.jpg', label: 'Achievements' },
-  { src: '/app-screens/profile.jpg', label: 'Profile' },
-  { src: '/app-screens/calendar.jpg', label: 'Calendar' },
+  { src: '/dashboard.jpg', label: 'Dashboard' },
+  { src: '/meal.jpg', label: 'Meal Plan' },
+  { src: '/workout.jpg', label: 'Workout' },
+  { src: '/progress.jpg', label: 'Progress' },
+  { src: '/achievements.jpg', label: 'Achievements' },
+  { src: '/profile.jpg', label: 'Profile' },
+  { src: '/calendar.jpg', label: 'Calendar' },
 ];
 
 const FACTS = [
@@ -151,7 +151,7 @@ export default function AppDownload() {
 
         {/* Featured phone mockup */}
         <div className="flex justify-center md:justify-end">
-          <PhoneFrame src="/app-screens/dashboard.jpg" alt="NutriFit dashboard" featured />
+          <PhoneFrame src="/dashboard.jpg" alt="NutriFit dashboard" featured />
         </div>
       </section>
 
