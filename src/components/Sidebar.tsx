@@ -27,9 +27,9 @@ export default function Sidebar({ active }: { active: string }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+   const handleLogout = () => {
     localStorage.removeItem('adminToken');
-    navigate('/login');
+    navigate('/');
   };
 
   const handleNavClick = (path: string) => {
