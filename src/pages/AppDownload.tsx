@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Salad, Dumbbell, ShieldCheck, LineChart, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '../components/Logo';
 
+// Palitan ito ng totoong download link ng APK (Expo/EAS build link, o Google Drive link)
 const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/arnyinson/projects/NutriFit/builds/0aeae059-0b94-4edf-a1e8-7ecc77c88a6d';
 
 const SCREENS = [
@@ -15,67 +16,53 @@ const SCREENS = [
   { src: '/calendar.jpg', label: 'Calendar' },
 ];
 
-const FACTS = [
-  { label: 'Meal Recommendations', value: 'AI-Personalized', note: 'Content-Based Filtering, matched to your calorie & macro targets' },
-  { label: 'Workout Plans', value: 'Auto-Generated', note: 'Rule-based, adjusted to your experience level and equipment' },
-  { label: 'Allergen Filtering', value: '10 Types Tracked', note: 'Meals excluded or substituted automatically' },
-  { label: 'Progress Adjustment', value: 'Weekly & Adaptive', note: 'Calorie targets shift based on your real results' },
-];
-
 const FEATURES = [
   {
     Icon: Salad,
-    title: 'Personalized Meal Plans',
-    body: 'Every meal is chosen to match your calorie and macronutrient targets, calculated from your own height, weight, age, and activity level.',
+    title: 'AI-Personalized Meal Plans',
+    body: 'AI-generated meal plans based on your calorie and macronutrient needs.',
   },
   {
     Icon: Dumbbell,
-    title: 'Structured Workouts',
-    body: "A full weekly training split, generated around the equipment you actually have and the experience level you're at right now.",
+    title: 'AI-Generated Workouts',
+    body: 'Weekly workout plans automatically built around your fitness goal and equipment.',
   },
   {
     Icon: ShieldCheck,
     title: 'Allergen-Aware',
-    body: 'Declare what you\u2019re allergic to once. NutriFit quietly substitutes or excludes affected meals from every plan it builds.',
+    body: 'Meals are automatically filtered or substituted based on your allergies.',
   },
   {
     Icon: LineChart,
-    title: 'Progress That Adapts',
-    body: 'Log your weight weekly and the app nudges your calorie target up or down to keep you on pace, no manual recalculating.',
+    title: 'Progress Tracking',
+    body: 'Log your weight and meals to track your fitness journey over time.',
   },
   {
     Icon: Trophy,
-    title: 'Achievements & Sharing',
-    body: 'Unlock milestones as you stay consistent, and share your progress or a single achievement as a real image, not just text.',
+    title: 'Achievements',
+    body: 'Earn badges and share your progress as you stay consistent.',
   },
 ];
 
-// Repeating "ruler tick" pattern for the side rails — echoes measuring/serving-size
-// motif of the nutrition-facts theme without being purely decorative filler
-function SideRail({ side }: { side: 'left' | 'right' }) {
+function SideGlow({ side }: { side: 'left' | 'right' }) {
   return (
     <div
       aria-hidden="true"
-      className={`hidden lg:flex fixed top-0 ${side === 'left' ? 'left-0' : 'right-0'} h-full w-10 flex-col items-center py-10 z-0`}
+      className={`hidden lg:block fixed top-0 ${side === 'left' ? 'left-0' : 'right-0'} h-full w-24 z-0 pointer-events-none`}
       style={{
-        backgroundImage:
+        background:
           side === 'left'
-            ? 'repeating-linear-gradient(to bottom, var(--nf-line) 0px, var(--nf-line) 1px, transparent 1px, transparent 28px)'
-            : 'repeating-linear-gradient(to bottom, var(--nf-line) 0px, var(--nf-line) 1px, transparent 1px, transparent 28px)',
-        backgroundPosition: side === 'left' ? '34px 0' : '6px 0',
-        backgroundRepeat: 'repeat-y',
+            ? 'linear-gradient(to right, rgba(76,175,80,0.10), transparent)'
+            : 'linear-gradient(to left, rgba(76,175,80,0.10), transparent)',
       }}
     >
-      <span
-        className="nf-display text-[10px] tracking-[0.3em] font-medium"
+      <div
+        className={`absolute top-0 ${side === 'left' ? 'left-0' : 'right-0'} h-full w-[3px]`}
         style={{
-          color: '#9AA79E',
-          writingMode: 'vertical-rl',
-          transform: 'rotate(180deg)',
+          background: 'linear-gradient(to bottom, transparent, var(--nf-green) 20%, var(--nf-green) 80%, transparent)',
+          opacity: 0.35,
         }}
-      >
-        NUTRIFIT \u2014 EST. 2026
-      </span>
+      />
     </div>
   );
 }
@@ -120,12 +107,12 @@ export default function AppDownload() {
         rel="stylesheet"
       />
 
-      <SideRail side="left" />
-      <SideRail side="right" />
+      <SideGlow side="left" />
+      <SideGlow side="right" />
 
-      <div className="relative z-10 lg:px-10">
+      <div className="relative z-10">
         {/* ============ HEADER ============ */}
-        <header className="max-w-6xl mx-auto px-6 md:px-10 lg:px-0 pt-8 pb-4 flex items-center justify-between">
+        <header className="max-w-6xl mx-auto px-6 md:px-10 pt-8 pb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo size={32} />
             <span className="nf-display text-xl font-semibold" style={{ color: 'var(--nf-ink)' }}>
@@ -142,7 +129,7 @@ export default function AppDownload() {
         </header>
 
         {/* ============ HERO ============ */}
-        <section className="max-w-6xl mx-auto px-6 md:px-10 lg:px-0 pt-10 pb-16 grid md:grid-cols-2 gap-12 items-center">
+        <section className="max-w-6xl mx-auto px-6 md:px-10 pt-10 pb-16 grid md:grid-cols-2 gap-12 items-center">
           <div>
             <p className="nf-body text-sm font-medium mb-4" style={{ color: 'var(--nf-green-dark)' }}>
               For San Jose Del Monte, Bulacan
@@ -178,42 +165,9 @@ export default function AppDownload() {
           </div>
         </section>
 
-        {/* ============ SYSTEM FACTS PANEL ============ */}
-        <section className="max-w-3xl mx-auto px-6 md:px-10 lg:px-0 pb-16">
-          <div className="bg-white" style={{ border: '3px solid var(--nf-ink)', borderRadius: '4px' }}>
-            <div className="px-6 pt-5 pb-3" style={{ borderBottom: '8px solid var(--nf-ink)' }}>
-              <h2 className="nf-display text-2xl font-bold" style={{ color: 'var(--nf-ink)' }}>
-                System Facts
-              </h2>
-              <p className="nf-body text-xs" style={{ color: '#6B7A70' }}>
-                What's actually running under the hood
-              </p>
-            </div>
-            {FACTS.map((fact, i) => (
-              <div
-                key={fact.label}
-                className="px-6 py-4 flex items-baseline justify-between gap-6"
-                style={{ borderBottom: i < FACTS.length - 1 ? '1px solid var(--nf-line)' : 'none' }}
-              >
-                <div>
-                  <p className="nf-body text-sm font-semibold" style={{ color: 'var(--nf-ink)' }}>
-                    {fact.label}
-                  </p>
-                  <p className="nf-body text-xs mt-0.5" style={{ color: '#6B7A70' }}>
-                    {fact.note}
-                  </p>
-                </div>
-                <span className="nf-display text-lg font-semibold whitespace-nowrap" style={{ color: 'var(--nf-green-dark)' }}>
-                  {fact.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* ============ SCREENSHOT MARQUEE ============ */}
         <section className="pb-16 overflow-hidden">
-          <div className="max-w-6xl mx-auto px-6 md:px-10 lg:px-0 mb-6">
+          <div className="max-w-6xl mx-auto px-6 md:px-10 mb-6">
             <h2 className="nf-display text-2xl font-semibold" style={{ color: 'var(--nf-ink)' }}>
               See it in action
             </h2>
@@ -227,10 +181,10 @@ export default function AppDownload() {
           </div>
         </section>
 
-        {/* ============ FEATURES ============ */}
-        <section className="max-w-3xl mx-auto px-6 md:px-10 lg:px-0 pb-20">
+        {/* ============ WHAT'S INSIDE ============ */}
+        <section className="max-w-3xl mx-auto px-6 md:px-10 pb-20">
           <h2 className="nf-display text-2xl font-semibold mb-6" style={{ color: 'var(--nf-ink)' }}>
-            What's inside
+            What's Inside
           </h2>
           <div>
             {FEATURES.map((f, i) => (
@@ -259,7 +213,7 @@ export default function AppDownload() {
         </section>
 
         {/* ============ FINAL CTA ============ */}
-        <section className="max-w-6xl mx-auto px-6 md:px-10 lg:px-0 pb-16">
+        <section className="max-w-6xl mx-auto px-6 md:px-10 pb-16">
           <div
             className="rounded-2xl px-8 py-10 md:py-12 flex flex-col md:flex-row items-center justify-between gap-6"
             style={{ background: 'var(--nf-ink)' }}
@@ -282,7 +236,7 @@ export default function AppDownload() {
         </section>
 
         {/* ============ FOOTER ============ */}
-        <footer className="max-w-6xl mx-auto px-6 md:px-10 lg:px-0 pb-10 flex items-center justify-between">
+        <footer className="max-w-6xl mx-auto px-6 md:px-10 pb-10 flex items-center justify-between">
           <p className="nf-body text-xs" style={{ color: '#8A968E' }}>
             &copy; 2026 NutriFit
           </p>
