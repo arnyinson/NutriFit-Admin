@@ -1,8 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import Logo from '../components/Logo';
 import api from '../config/api';
+
+// Reads the "exp" claim of the JWT (no verification — the server still verifies it).
+// Used only to avoid showing the login form to someone whose token is still valid.
+const isTokenStillValid = (token: string | null) => {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return !payload.exp || payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+};
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +23,16 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Already logged in (e.g. opened a new tab)? Skip the form and go to the dashboard.
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (isTokenStillValid(token)) {
+      navigate('/dashboard', { replace: true });
+    } else if (token) {
+      localStorage.removeItem('adminToken'); // expired or malformed
+    }
+  }, [navigate]);
 
   const handleLogin = async () => {
     if (!username || !password) {
