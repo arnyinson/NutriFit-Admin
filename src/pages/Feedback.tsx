@@ -15,6 +15,7 @@ type Ticket = {
   status: 'Pending' | 'Resolved' | 'New';
   type: string;
   admin_response: string | null;
+  responded_at?: string | null;
   image_url: string | null;
 };
 
@@ -26,6 +27,11 @@ type Summary = {
 };
 
 const PAGE_SIZE = 10;
+const RESPONSE_MAX = 500;
+const REFRESH_MS = 15000;
+
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 export default function Feedback() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -42,25 +48,30 @@ export default function Feedback() {
   const [page, setPage] = useState(1);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
 
-  const loadTickets = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (statusFilter !== 'All Status') params.status = statusFilter;
-      if (dateStart) params.date_start = dateStart;
-      if (dateEnd) params.date_end = dateEnd;
+  const fetchTickets = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const params: Record<string, string> = {};
+        if (search) params.search = search;
+        if (statusFilter !== 'All Status') params.status = statusFilter;
+        if (dateStart) params.date_start = dateStart;
+        if (dateEnd) params.date_end = dateEnd;
 
-      const res = await api.get('/tickets', { params });
-      setTickets(res.data.tickets);
-      setSummary(res.data.summary);
-      setPage(1);
-    } catch (err) {
-      console.error('Load tickets error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, dateStart, dateEnd]);
+        const res = await api.get('/tickets', { params });
+        setTickets(res.data.tickets);
+        setSummary(res.data.summary);
+        if (!silent) setPage(1);
+      } catch (err) {
+        console.error('Load tickets error:', err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [search, statusFilter, dateStart, dateEnd]
+  );
+
+  const loadTickets = useCallback(() => fetchTickets(false), [fetchTickets]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -68,6 +79,14 @@ export default function Feedback() {
     }, 300);
     return () => clearTimeout(timeout);
   }, [loadTickets]);
+
+  // Near real-time: quietly refresh the list so new tickets appear without reloading.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTickets(true);
+    }, REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [fetchTickets]);
 
   const getStatusColor = (status: string) => {
     if (status === 'Pending') return 'bg-orange-50 text-orange-500';
@@ -112,6 +131,34 @@ export default function Feedback() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleReopen = async () => {
+    if (!selectedTicket) return;
+    setSaving(true);
+    try {
+      await api.patch(`/tickets/${selectedTicket.id}/status`, { status: 'Pending' });
+      setSelectedTicket({ ...selectedTicket, status: 'Pending' });
+      setTickets((prev) => prev.map((t) => (t.id === selectedTicket.id ? { ...t, status: 'Pending' } : t)));
+      loadTickets();
+    } catch (err) {
+      console.error('Reopen ticket error:', err);
+      alert('Unable to reopen ticket. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pageNumbers = (): (number | '…')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | '…')[] = [1];
+    const from = Math.max(2, page - 1);
+    const to = Math.min(totalPages - 1, page + 1);
+    if (from > 2) pages.push('…');
+    for (let p = from; p <= to; p++) pages.push(p);
+    if (to < totalPages - 1) pages.push('…');
+    pages.push(totalPages);
+    return pages;
   };
 
   const handleSaveResponseOnly = async () => {
@@ -262,7 +309,7 @@ export default function Feedback() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                        {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatDateTime(ticket.created_at)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(ticket.status)}`}>
@@ -295,17 +342,21 @@ export default function Feedback() {
               >
                 <ChevronLeft size={16} />
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                    p === page ? 'bg-green-500 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+              {pageNumbers().map((p, i) =>
+                p === '…' ? (
+                  <span key={`gap-${i}`} className="px-1 text-gray-400 text-sm">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                      p === page ? 'bg-green-500 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
@@ -347,6 +398,11 @@ export default function Feedback() {
                 </span>
               </div>
 
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Submitted</p>
+                <p className="text-sm font-semibold text-gray-700">{formatDateTime(selectedTicket.created_at)}</p>
+              </div>
+
               {/* Type */}
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">Type</p>
@@ -380,9 +436,16 @@ export default function Feedback() {
                 <textarea
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-24 resize-none"
                   placeholder="Type your response here..."
+                  maxLength={RESPONSE_MAX}
                   value={response}
                   onChange={(e) => setResponse(e.target.value)}
                 />
+                <div className="flex justify-between mt-1">
+                  <p className="text-[11px] text-gray-400">
+                    {selectedTicket.responded_at ? `Responded ${formatDateTime(selectedTicket.responded_at)}` : ''}
+                  </p>
+                  <p className="text-[11px] text-gray-400">{response.length}/{RESPONSE_MAX}</p>
+                </div>
               </div>
 
               {/* Actions */}
@@ -401,14 +464,24 @@ export default function Feedback() {
                   >
                     {saving ? 'Saving...' : 'Mark as Resolved'}
                   </button>
-                ) : (
-                  <button
-                    onClick={handleSaveResponseOnly}
-                    disabled={saving}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
-                  >
-                    {saving ? 'Saving...' : 'Update Response'}
-                  </button>
+                ) : null}
+                {selectedTicket.status === 'Resolved' && (
+                  <>
+                    <button
+                      onClick={handleReopen}
+                      disabled={saving}
+                      className="flex-1 border border-orange-200 text-orange-500 hover:bg-orange-50 py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                    >
+                      Reopen ticket
+                    </button>
+                    <button
+                      onClick={handleSaveResponseOnly}
+                      disabled={saving}
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                    >
+                      {saving ? 'Saving...' : 'Update Response'}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

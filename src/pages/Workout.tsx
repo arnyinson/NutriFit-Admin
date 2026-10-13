@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Search, Plus, Eye, Pencil, Trash2, X, Play,
-  Dumbbell, Activity, Wrench, Gauge, CheckCircle, AlertCircle,
+  Search, Plus, Pencil, Trash2, X, Play,
+  Dumbbell, Activity, Wrench, Gauge,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
@@ -16,6 +16,11 @@ type Exercise = {
   video_url: string | null;
 };
 
+const NAME_MAX = 50;
+const INSTR_MAX = 1000;
+const reqCls = (bad: boolean) =>
+  `w-full border rounded-xl px-4 py-3 text-sm outline-none ${bad ? 'border-red-400 bg-red-50 focus:border-red-500' : 'border-gray-200 focus:border-green-400'}`;
+
 export default function Workout() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,10 +29,11 @@ export default function Workout() {
   const [equipmentFilter, setEquipmentFilter] = useState('Equipment');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [addSubmitted, setAddSubmitted] = useState(false);
+  const [editSubmitted, setEditSubmitted] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [newExercise, setNewExercise] = useState({
     name: '', muscle_group: 'Chest', equipment: 'Barbell',
@@ -98,12 +104,16 @@ export default function Workout() {
     return 'bg-red-50 text-red-500';
   };
 
+  const sanitizeName = (v: string) => v.replace(/[^a-zA-Z0-9 \-()]/g, '').slice(0, NAME_MAX);
+
   const handleAdd = async () => {
-    if (!newExercise.name) return;
+    setAddSubmitted(true);
+    if (!newExercise.name.trim() || !newExercise.instructions.trim()) return;
     setSaving(true);
     try {
       await api.post('/workouts', newExercise);
       setNewExercise({ name: '', muscle_group: 'Chest', equipment: 'Barbell', difficulty: 'Beginner', instructions: '' });
+      setAddSubmitted(false);
       setShowAddModal(false);
       loadExercises();
       refreshAllExercises();
@@ -129,16 +139,20 @@ export default function Workout() {
 
   const handleSaveEdit = async () => {
     if (!selectedExercise) return;
+    setEditSubmitted(true);
+    if (!selectedExercise.name.trim() || !selectedExercise.instructions.trim()) return;
     setSaving(true);
     try {
       await api.put(`/workouts/${selectedExercise.id}`, {
         name: selectedExercise.name,
         muscle_group: selectedExercise.muscle_group,
         equipment: selectedExercise.equipment,
+        difficulty: selectedExercise.difficulty,
         instructions: selectedExercise.instructions,
       });
       setExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
       setAllExercises((prev) => prev.map((e) => (e.id === selectedExercise.id ? selectedExercise : e)));
+      setEditSubmitted(false);
       setShowEditModal(false);
       refreshAllExercises();
     } catch (err) {
@@ -183,13 +197,13 @@ export default function Workout() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar active="Workout Plan Management" />
+      <Sidebar active="Workout Management" />
 
       <div className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 min-w-0 w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Workout Plan Management</h1>
-          <p className="text-sm text-gray-400 mt-1">Manage workout and exercise templates for the system</p>
+          <h1 className="text-2xl font-bold text-gray-800">Workout Management</h1>
+          <p className="text-sm text-gray-400 mt-1">Manage the exercise library used by the system to build each user's personalized workout</p>
         </div>
 
         {/* Main content: table stacks above breakdown panel on mobile, side by side on large screens */}
@@ -241,7 +255,7 @@ export default function Workout() {
                   </select>
                 </div>
                 <button
-                  onClick={() => setShowAddModal(true)}
+                  onClick={() => { setAddSubmitted(false); setShowAddModal(true); }}
                   className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <Plus size={16} /> <span className="hidden sm:inline">Add new exercise</span><span className="sm:hidden">Add</span>
@@ -279,12 +293,7 @@ export default function Workout() {
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{exercise.name}</span>
-                              {!exercise.video_url && (
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"
-                                  title="Using automatic GIF fallback — no custom video uploaded"
-                                />
-                              )}
+                              
                             </div>
                           </div>
                         </td>
@@ -298,13 +307,7 @@ export default function Workout() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => { setSelectedExercise(exercise); setShowDetailModal(true); }}
-                              className="text-green-500 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button
-                              onClick={() => { setSelectedExercise({ ...exercise }); setShowEditModal(true); }}
+                              onClick={() => { setSelectedExercise({ ...exercise }); setEditSubmitted(false); setShowEditModal(true); }}
                               className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
                             >
                               <Pencil size={16} />
@@ -417,13 +420,15 @@ export default function Workout() {
             </div>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Exercise Name</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Exercise Name <span className="text-red-500">*</span></label>
                 <input
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
+                  className={reqCls(addSubmitted && !newExercise.name.trim())}
                   placeholder="e.g. Bench Press"
+                  maxLength={NAME_MAX}
                   value={newExercise.name}
-                  onChange={(e) => setNewExercise((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(e) => setNewExercise((p) => ({ ...p, name: sanitizeName(e.target.value) }))}
                 />
+                {addSubmitted && !newExercise.name.trim() && <p className="text-xs text-red-500 mt-1">Exercise name is required.</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -473,13 +478,18 @@ export default function Workout() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Instructions</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Instructions <span className="text-red-500">*</span></label>
                 <textarea
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-24 resize-none"
-                  placeholder="Step by step instructions..."
+                  className={`${reqCls(addSubmitted && !newExercise.instructions.trim())} min-h-24 resize-none`}
+                  placeholder="One step per line, e.g.&#10;Lie flat on the bench&#10;Lower the bar to your chest&#10;Press back up"
+                  maxLength={INSTR_MAX}
                   value={newExercise.instructions}
                   onChange={(e) => setNewExercise((p) => ({ ...p, instructions: e.target.value }))}
                 />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-red-500">{addSubmitted && !newExercise.instructions.trim() ? 'Instructions are required.' : ''}</p>
+                  <p className="text-xs text-gray-400">{newExercise.instructions.length}/{INSTR_MAX}</p>
+                </div>
               </div>
               <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-600">
                 Video upload is available after saving — open this exercise again via the Edit (pencil) button.
@@ -504,78 +514,6 @@ export default function Workout() {
         </div>
       )}
 
-      {/* Exercise Detail Modal */}
-      {showDetailModal && selectedExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[420px] shadow-xl my-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-gray-800">{selectedExercise.name}</h2>
-              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 mb-1">Muscle Group</p>
-                  <p className="text-sm font-semibold text-gray-700">{selectedExercise.muscle_group}</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 mb-1">Equipment</p>
-                  <p className="text-sm font-semibold text-gray-700">{selectedExercise.equipment}</p>
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Difficulty</p>
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getDifficultyColor(selectedExercise.difficulty)}`}>
-                  {selectedExercise.difficulty}
-                </span>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-2">Instructions</p>
-                <p className="text-sm text-gray-700 whitespace-pre-line">{selectedExercise.instructions}</p>
-              </div>
-              {selectedExercise.video_url ? (
-                <div>
-                  <video
-                    src={selectedExercise.video_url}
-                    controls
-                    className="w-full rounded-xl bg-black"
-                    style={{ maxHeight: 220 }}
-                  />
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-green-600 font-medium">
-                    <CheckCircle size={13} />
-                    Custom video uploaded
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="bg-gray-900 rounded-xl p-8 flex flex-col items-center justify-center text-white gap-2">
-                    <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
-                      <Play size={26} fill="white" />
-                    </div>
-                    <p className="text-sm font-medium">No Custom Video</p>
-                    <p className="text-xs text-gray-400 text-center">
-                      The mobile app will automatically show a matching GIF demo from ExerciseDB instead
-                    </p>
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-orange-500 font-medium">
-                    <AlertCircle size={13} />
-                    Using automatic fallback — upload a video for better quality
-                  </div>
-                </div>
-              )}
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Modal */}
       {showEditModal && selectedExercise && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8 px-4">
@@ -588,12 +526,14 @@ export default function Workout() {
             </div>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Exercise Name</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Exercise Name <span className="text-red-500">*</span></label>
                 <input
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
+                  className={reqCls(editSubmitted && !selectedExercise.name.trim())}
+                  maxLength={NAME_MAX}
                   value={selectedExercise.name}
-                  onChange={(e) => setSelectedExercise((p) => (p ? { ...p, name: e.target.value } : p))}
+                  onChange={(e) => setSelectedExercise((p) => (p ? { ...p, name: sanitizeName(e.target.value) } : p))}
                 />
+                {editSubmitted && !selectedExercise.name.trim() && <p className="text-xs text-red-500 mt-1">Exercise name is required.</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -631,12 +571,29 @@ export default function Workout() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Instructions</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Difficulty</label>
+                <select
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
+                  value={selectedExercise.difficulty}
+                  onChange={(e) => setSelectedExercise((p) => (p ? { ...p, difficulty: e.target.value as Exercise['difficulty'] } : p))}
+                >
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Instructions <span className="text-red-500">*</span></label>
                 <textarea
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none min-h-24 resize-none"
+                  className={`${reqCls(editSubmitted && !selectedExercise.instructions.trim())} min-h-24 resize-none`}
+                  maxLength={INSTR_MAX}
                   value={selectedExercise.instructions}
                   onChange={(e) => setSelectedExercise((p) => (p ? { ...p, instructions: e.target.value } : p))}
                 />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-red-500">{editSubmitted && !selectedExercise.instructions.trim() ? 'Instructions are required.' : ''}</p>
+                  <p className="text-xs text-gray-400">{selectedExercise.instructions.length}/{INSTR_MAX}</p>
+                </div>
               </div>
 
               {/* Video Upload Section */}

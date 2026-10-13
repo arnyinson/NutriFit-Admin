@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, ShieldCheck, AlertTriangle, ListPlus, PlusCircle, MinusCircle } from 'lucide-react';
+import {
+  Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, ShieldCheck, AlertTriangle,
+  ListPlus, PlusCircle, MinusCircle, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 
@@ -41,9 +44,53 @@ type OutsideFoodLog = {
   username: string;
 };
 
-// Simple, reusable ingredient list editor — used for both Main and Sub ingredients,
-// in both the Add and Edit modals.
-type IngredientRow = { name: string; allergensText: string; substituteOverride?: string };
+// ---------- Constants & input helpers ----------
+
+// Same allergen list the mobile app uses (Register / Profile), so names always match.
+const ALLERGENS = ['Eggs', 'Peanuts', 'Tree Nuts', 'Dairy', 'Shellfish', 'Fish', 'Soy', 'Wheat', 'Sesame', 'Lupin'];
+
+// Sample suggestions shown while typing a Main Ingredient.
+const MAIN_SUGGESTIONS = [
+  'Chicken Breast', 'Chicken Thigh', 'Beef', 'Pork', 'Egg', 'Tofu', 'Tilapia', 'Salmon', 'Tuna',
+  'Shrimp', 'Squid', 'Brown Rice', 'White Rice', 'Oats', 'Sweet Potato', 'Potato', 'Corn',
+  'Pasta', 'Bread', 'Broccoli', 'Cabbage', 'Carrots', 'Spinach', 'Eggplant', 'Banana', 'Avocado',
+];
+
+const PAGE_SIZE = 10;
+const NAME_MAX = 50;
+const ING_MAX = 25;
+const INSTR_MAX = 1500;
+
+const sanitizeMealName = (v: string) => v.replace(/[^a-zA-Z0-9 \-()'&,.]/g, '').slice(0, NAME_MAX);
+const sanitizeIngName = (v: string) => v.replace(/[^a-zA-Z -]/g, '').slice(0, ING_MAX);
+
+// Digits with at most one decimal point. maxInt = digits before the point, maxDec = digits after.
+const sanitizeDecimal = (v: string, maxInt: number, maxDec = 1) => {
+  let cleaned = v.replace(/[^0-9.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot !== -1) {
+    cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+  }
+  const [intPart, decPart] = cleaned.split('.');
+  const safeInt = (intPart || '').slice(0, maxInt);
+  if (cleaned.includes('.') && maxDec > 0) return `${safeInt}.${(decPart || '').slice(0, maxDec)}`;
+  return safeInt;
+};
+
+// Atwater factors: 4 kcal/g protein, 4 kcal/g carbs, 9 kcal/g fats.
+const calcCalories = (protein: string, carbs: string, fats: string) =>
+  Math.round((parseFloat(protein) || 0) * 4 + (parseFloat(carbs) || 0) * 4 + (parseFloat(fats) || 0) * 9);
+
+const inputCls = (bad: boolean) =>
+  `w-full border rounded-xl px-4 py-3 text-sm outline-none ${
+    bad ? 'border-red-400 bg-red-50 focus:border-red-500' : 'border-gray-200 focus:border-green-400'
+  }`;
+
+const Req = () => <span className="text-red-500"> *</span>;
+
+// ---------- Ingredient editor (Main & Sub) ----------
+
+type IngredientRow = { name: string; allergens: string[]; substituteOverride?: string };
 
 function IngredientListEditor({
   label,
@@ -51,27 +98,45 @@ function IngredientListEditor({
   rows,
   onChange,
   showSubstitute,
+  required,
+  submitted,
+  suggestionsId,
 }: {
   label: string;
   hint: string;
   rows: IngredientRow[];
   onChange: (rows: IngredientRow[]) => void;
   showSubstitute?: boolean;
+  required?: boolean;
+  submitted?: boolean;
+  suggestionsId?: string;
 }) {
   const updateRow = (index: number, patch: Partial<IngredientRow>) => {
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   };
   const addRow = () => {
-    onChange([...rows, { name: '', allergensText: '', substituteOverride: '' }]);
+    onChange([...rows, { name: '', allergens: [], substituteOverride: '' }]);
   };
   const removeRow = (index: number) => {
     onChange(rows.filter((_, i) => i !== index));
   };
+  const toggleAllergen = (index: number, allergen: string) => {
+    const current = rows[index].allergens;
+    updateRow(index, {
+      allergens: current.includes(allergen) ? current.filter((a) => a !== allergen) : [...current, allergen],
+    });
+  };
+
+  const noneFilled = rows.every((r) => !r.name.trim());
+  const missing = required && submitted && noneFilled;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <label className="text-xs font-semibold text-gray-500 block">{label}</label>
+        <label className="text-xs font-semibold text-gray-500 block">
+          {label}
+          {required && <Req />}
+        </label>
         <button
           type="button"
           onClick={addRow}
@@ -81,18 +146,20 @@ function IngredientListEditor({
         </button>
       </div>
       <p className="text-[11px] text-gray-400 mb-2">{hint}</p>
-      <div className="flex flex-col gap-2">
+      <div className={`flex flex-col gap-2 ${missing ? 'rounded-xl border border-red-400 bg-red-50 p-2' : ''}`}>
         {rows.length === 0 ? (
           <p className="text-xs text-gray-400 italic">No ingredients added yet.</p>
         ) : (
           rows.map((row, i) => (
-            <div key={i} className="border border-gray-200 rounded-xl p-3 flex flex-col gap-2">
+            <div key={i} className="border border-gray-200 bg-white rounded-xl p-3 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <input
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-green-400"
                   placeholder="Ingredient name (e.g. soy sauce)"
+                  maxLength={ING_MAX}
+                  list={suggestionsId}
                   value={row.name}
-                  onChange={(e) => updateRow(i, { name: e.target.value })}
+                  onChange={(e) => updateRow(i, { name: sanitizeIngName(e.target.value) })}
                 />
                 <button
                   type="button"
@@ -102,72 +169,255 @@ function IngredientListEditor({
                   <MinusCircle size={16} />
                 </button>
               </div>
-              <input
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-green-400"
-                placeholder="Allergens (comma separated, e.g. Soy, Dairy) — leave blank if none"
-                value={row.allergensText}
-                onChange={(e) => updateRow(i, { allergensText: e.target.value })}
-              />
+              <div>
+                <p className="text-[11px] text-gray-400 mb-1">Allergens (tap to select, leave empty if none)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...ALLERGENS, ...row.allergens.filter((a) => !ALLERGENS.includes(a))].map((a) => {
+                    const active = row.allergens.includes(a);
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleAllergen(i, a)}
+                        className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                          active
+                            ? 'bg-red-500 border-red-500 text-white'
+                            : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {showSubstitute && (
                 <input
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-green-400"
-                  placeholder="Substitute for THIS meal only (optional — leave blank to use default substitute)"
+                  placeholder="Substitute for THIS meal only (optional — blank uses the default substitute)"
+                  maxLength={ING_MAX}
                   value={row.substituteOverride || ''}
-                  onChange={(e) => updateRow(i, { substituteOverride: e.target.value })}
+                  onChange={(e) => updateRow(i, { substituteOverride: sanitizeIngName(e.target.value) })}
                 />
               )}
             </div>
           ))
         )}
       </div>
+      {missing && <p className="text-xs text-red-500 mt-1">Add at least one main ingredient.</p>}
     </div>
   );
 }
 
 const ingredientsToRows = (ingredients: Ingredient[]): IngredientRow[] =>
-  (ingredients || []).map((ing) => ({ name: ing.name, allergensText: (ing.allergens || []).join(', ') }));
+  (ingredients || []).map((ing) => ({ name: ing.name, allergens: ing.allergens || [] }));
 
 const subIngredientsToRows = (ingredients: SubIngredient[]): IngredientRow[] =>
   (ingredients || []).map((ing) => ({
     name: ing.name,
-    allergensText: (ing.allergens || []).join(', '),
+    allergens: ing.allergens || [],
     substituteOverride: ing.substitute_override || '',
   }));
 
 const rowsToIngredients = (rows: IngredientRow[]): Ingredient[] =>
-  rows
-    .filter((r) => r.name.trim())
-    .map((r) => ({
-      name: r.name.trim(),
-      allergens: r.allergensText ? r.allergensText.split(',').map((a) => a.trim()).filter(Boolean) : [],
-    }));
+  rows.filter((r) => r.name.trim()).map((r) => ({ name: r.name.trim(), allergens: r.allergens }));
 
 const rowsToSubIngredients = (rows: IngredientRow[]): SubIngredient[] =>
   rows
     .filter((r) => r.name.trim())
     .map((r) => ({
       name: r.name.trim(),
-      allergens: r.allergensText ? r.allergensText.split(',').map((a) => a.trim()).filter(Boolean) : [],
+      allergens: r.allergens,
       substitute_override: r.substituteOverride?.trim() || null,
     }));
+
+// ---------- Shared meal form (used by Add and Edit) ----------
+
+type MealForm = {
+  name: string;
+  category: string;
+  meal_type: string;
+  protein: string;
+  carbs: string;
+  fats: string;
+  instructions: string;
+};
+
+const emptyForm: MealForm = {
+  name: '', category: 'Protein', meal_type: 'Breakfast', protein: '', carbs: '', fats: '', instructions: '',
+};
+
+const formErrors = (f: MealForm, mainRows: IngredientRow[]) => ({
+  name: !f.name.trim(),
+  protein: f.protein === '' || f.protein === '.',
+  carbs: f.carbs === '' || f.carbs === '.',
+  fats: f.fats === '' || f.fats === '.',
+  main: mainRows.every((r) => !r.name.trim()),
+  instructions: !f.instructions.trim(),
+  zeroCalories: calcCalories(f.protein, f.carbs, f.fats) <= 0,
+});
+
+function MealFormFields({
+  form,
+  setForm,
+  mainRows,
+  setMainRows,
+  subRows,
+  setSubRows,
+  submitted,
+  showMealType,
+}: {
+  form: MealForm;
+  setForm: (patch: Partial<MealForm>) => void;
+  mainRows: IngredientRow[];
+  setMainRows: (rows: IngredientRow[]) => void;
+  subRows: IngredientRow[];
+  setSubRows: (rows: IngredientRow[]) => void;
+  submitted: boolean;
+  showMealType: boolean;
+}) {
+  const err = formErrors(form, mainRows);
+  const totalCalories = calcCalories(form.protein, form.carbs, form.fats);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <label className="text-xs font-semibold text-gray-500 mb-1 block">Meal Name<Req /></label>
+        <input
+          className={inputCls(submitted && err.name)}
+          placeholder="e.g. Chicken Adobo"
+          maxLength={NAME_MAX}
+          value={form.name}
+          onChange={(e) => setForm({ name: sanitizeMealName(e.target.value) })}
+        />
+        {submitted && err.name && <p className="text-xs text-red-500 mt-1">Meal name is required.</p>}
+      </div>
+
+      <div className={`grid gap-4 ${showMealType ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 mb-1 block">Category</label>
+          <select
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
+            value={form.category}
+            onChange={(e) => setForm({ category: e.target.value })}
+          >
+            <option>Protein</option>
+            <option>Carbs</option>
+            <option>Vegetable</option>
+            <option>Fats</option>
+          </select>
+        </div>
+        {showMealType && (
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">Meal Type</label>
+            <select
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
+              value={form.meal_type}
+              onChange={(e) => setForm({ meal_type: e.target.value })}
+            >
+              <option>Breakfast</option>
+              <option>Lunch</option>
+              <option>Dinner</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {([
+          ['protein', 'Protein (g)'],
+          ['carbs', 'Carbs (g)'],
+          ['fats', 'Fats (g)'],
+        ] as const).map(([key, label]) => (
+          <div key={key}>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">{label}<Req /></label>
+            <input
+              className={inputCls(submitted && err[key])}
+              placeholder="0"
+              inputMode="decimal"
+              value={form[key]}
+              onChange={(e) => setForm({ [key]: sanitizeDecimal(e.target.value, 3, 1) } as Partial<MealForm>)}
+            />
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-gray-400 -mt-2">Max 999.9 g each. Numbers only, up to 1 decimal place.</p>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-500 mb-1 block">Total Calories (auto-computed)</label>
+        <div
+          className={`w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-between ${
+            submitted && err.zeroCalories ? 'border border-red-400 bg-red-50 text-red-500' : 'bg-gray-50 border border-gray-100 text-gray-700'
+          }`}
+        >
+          <span>{totalCalories} kcal</span>
+          <span className="text-[11px] font-normal text-gray-400">P×4 + C×4 + F×9</span>
+        </div>
+        {submitted && err.zeroCalories && <p className="text-xs text-red-500 mt-1">Enter at least one macro greater than 0.</p>}
+      </div>
+
+      <div className="border-t border-gray-100 pt-4">
+        <IngredientListEditor
+          label="Main Ingredients"
+          hint="Defines the dish (e.g. chicken, beef, tofu). If any has an allergen, the whole meal is excluded — no substitute possible."
+          rows={mainRows}
+          onChange={setMainRows}
+          required
+          submitted={submitted}
+          suggestionsId="main-ingredient-suggestions"
+        />
+      </div>
+
+      <div className="border-t border-gray-100 pt-4">
+        <IngredientListEditor
+          label="Sub Ingredients"
+          hint="Seasonings, sauces, extras (e.g. soy sauce, milk). If any has an allergen, a substitute will be used automatically to keep the meal on the plan."
+          rows={subRows}
+          onChange={setSubRows}
+          showSubstitute
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions (step by step)<Req /></label>
+        <textarea
+          className={`${inputCls(submitted && err.instructions)} min-h-[100px] resize-none`}
+          placeholder={'One step per line, e.g.\nMarinate chicken in soy sauce and vinegar for 30 minutes\nSauté garlic and onions\nSimmer until tender'}
+          maxLength={INSTR_MAX}
+          value={form.instructions}
+          onChange={(e) => setForm({ instructions: e.target.value })}
+        />
+        <div className="flex justify-between mt-1">
+          <p className="text-xs text-red-500">{submitted && err.instructions ? 'Instructions are required.' : ''}</p>
+          <p className="text-xs text-gray-400">{form.instructions.length}/{INSTR_MAX}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Page ----------
 
 export default function MealPlan() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
+  const [page, setPage] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [saving, setSaving] = useState(false);
-  const [newMeal, setNewMeal] = useState({
-    name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '', instructions: '',
-  });
+
+  const [newMeal, setNewMeal] = useState<MealForm>(emptyForm);
   const [newMainRows, setNewMainRows] = useState<IngredientRow[]>([]);
   const [newSubRows, setNewSubRows] = useState<IngredientRow[]>([]);
+  const [addSubmitted, setAddSubmitted] = useState(false);
 
+  const [editForm, setEditForm] = useState<MealForm>(emptyForm);
   const [editMainRows, setEditMainRows] = useState<IngredientRow[]>([]);
   const [editSubRows, setEditSubRows] = useState<IngredientRow[]>([]);
+  const [editSubmitted, setEditSubmitted] = useState(false);
 
   const [outsideLogs, setOutsideLogs] = useState<OutsideFoodLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
@@ -211,6 +461,11 @@ export default function MealPlan() {
     loadOutsideLogs();
   }, [loadOutsideLogs]);
 
+  // Back to page 1 whenever the filter or search changes.
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter]);
+
   const totalMeals = meals.length;
   const proteinMeals = meals.filter((m) => m.category === 'Protein').length;
   const withAllergens = meals.filter((m) => m.allergens && m.allergens.length > 0).length;
@@ -223,6 +478,24 @@ export default function MealPlan() {
     { label: 'Allergen-Free Meals', value: String(allergenFreeMeals), Icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-50' },
   ];
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(meals.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageMeals = meals.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const pageNumbers = (): (number | '…')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | '…')[] = [1];
+    const from = Math.max(2, currentPage - 1);
+    const to = Math.min(totalPages - 1, currentPage + 1);
+    if (from > 2) pages.push('…');
+    for (let p = from; p <= to; p++) pages.push(p);
+    if (to < totalPages - 1) pages.push('…');
+    pages.push(totalPages);
+    return pages;
+  };
+
   const formatLogTime = (isoDate: string) => {
     const date = new Date(isoDate);
     return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -233,36 +506,47 @@ export default function MealPlan() {
   const computeTopLevelAllergens = (mainRows: IngredientRow[], subRows: IngredientRow[]): string[] => {
     const all = new Set<string>();
     [...mainRows, ...subRows].forEach((r) => {
-      (r.allergensText || '').split(',').map((a) => a.trim()).filter(Boolean).forEach((a) => all.add(a));
+      if (r.name.trim()) r.allergens.forEach((a) => all.add(a));
     });
     return [...all];
   };
 
+  const hasErrors = (f: MealForm, mainRows: IngredientRow[]) => {
+    const e = formErrors(f, mainRows);
+    return e.name || e.protein || e.carbs || e.fats || e.main || e.instructions || e.zeroCalories;
+  };
+
+  const openAddModal = () => {
+    setNewMeal(emptyForm);
+    setNewMainRows([]);
+    setNewSubRows([]);
+    setAddSubmitted(false);
+    setShowAddModal(true);
+  };
+
   const handleAdd = async () => {
-    if (!newMeal.name || !newMeal.calories) return;
+    setAddSubmitted(true);
+    if (hasErrors(newMeal, newMainRows)) return;
     setSaving(true);
     try {
-      const mainIngredients = rowsToIngredients(newMainRows);
-      const subIngredients = rowsToSubIngredients(newSubRows);
-      const computedAllergens = computeTopLevelAllergens(newMainRows, newSubRows);
-
       await api.post('/meals', {
-        name: newMeal.name,
+        name: newMeal.name.trim(),
         category: newMeal.category,
         meal_type: newMeal.meal_type,
-        calories: Number(newMeal.calories),
-        protein: Number(newMeal.protein) || 0,
-        carbs: Number(newMeal.carbs) || 0,
-        fats: Number(newMeal.fats) || 0,
-        allergens: computedAllergens,
+        calories: calcCalories(newMeal.protein, newMeal.carbs, newMeal.fats),
+        protein: parseFloat(newMeal.protein) || 0,
+        carbs: parseFloat(newMeal.carbs) || 0,
+        fats: parseFloat(newMeal.fats) || 0,
+        allergens: computeTopLevelAllergens(newMainRows, newSubRows),
         ingredients: [],
-        instructions: newMeal.instructions,
-        main_ingredients: mainIngredients,
-        sub_ingredients: subIngredients,
+        instructions: newMeal.instructions.trim(),
+        main_ingredients: rowsToIngredients(newMainRows),
+        sub_ingredients: rowsToSubIngredients(newSubRows),
       });
-      setNewMeal({ name: '', category: 'Protein', meal_type: 'Breakfast', calories: '', protein: '', carbs: '', fats: '', allergens: '', instructions: '' });
+      setNewMeal(emptyForm);
       setNewMainRows([]);
       setNewSubRows([]);
+      setAddSubmitted(false);
       setShowAddModal(false);
       loadMeals();
     } catch (err) {
@@ -285,28 +569,44 @@ export default function MealPlan() {
   };
 
   const handleEdit = (meal: Meal) => {
-    setSelectedMeal({ ...meal });
+    setSelectedMeal(meal);
+    setEditForm({
+      name: meal.name,
+      category: meal.category,
+      meal_type: meal.meal_type,
+      protein: String(meal.protein ?? ''),
+      carbs: String(meal.carbs ?? ''),
+      fats: String(meal.fats ?? ''),
+      instructions: meal.instructions || '',
+    });
     setEditMainRows(ingredientsToRows(meal.main_ingredients || []));
     setEditSubRows(subIngredientsToRows(meal.sub_ingredients || []));
+    setEditSubmitted(false);
     setShowEditModal(true);
   };
 
   const handleSaveEdit = async () => {
     if (!selectedMeal) return;
+    setEditSubmitted(true);
+    if (hasErrors(editForm, editMainRows)) return;
     setSaving(true);
     try {
       const mainIngredients = rowsToIngredients(editMainRows);
       const subIngredients = rowsToSubIngredients(editSubRows);
       const computedAllergens = computeTopLevelAllergens(editMainRows, editSubRows);
+      const calories = calcCalories(editForm.protein, editForm.carbs, editForm.fats);
+      const protein = parseFloat(editForm.protein) || 0;
+      const carbs = parseFloat(editForm.carbs) || 0;
+      const fats = parseFloat(editForm.fats) || 0;
 
       await api.put(`/meals/${selectedMeal.id}`, {
-        name: selectedMeal.name,
-        category: selectedMeal.category,
-        calories: Number(selectedMeal.calories),
-        protein: Number(selectedMeal.protein),
-        carbs: Number(selectedMeal.carbs),
-        fats: Number(selectedMeal.fats),
-        instructions: selectedMeal.instructions,
+        name: editForm.name.trim(),
+        category: editForm.category,
+        calories,
+        protein,
+        carbs,
+        fats,
+        instructions: editForm.instructions.trim(),
         allergens: computedAllergens,
         main_ingredients: mainIngredients,
         sub_ingredients: subIngredients,
@@ -314,10 +614,23 @@ export default function MealPlan() {
       setMeals((prev) =>
         prev.map((m) =>
           m.id === selectedMeal.id
-            ? { ...selectedMeal, allergens: computedAllergens, main_ingredients: mainIngredients, sub_ingredients: subIngredients }
+            ? {
+                ...m,
+                name: editForm.name.trim(),
+                category: editForm.category,
+                calories,
+                protein,
+                carbs,
+                fats,
+                instructions: editForm.instructions.trim(),
+                allergens: computedAllergens,
+                main_ingredients: mainIngredients,
+                sub_ingredients: subIngredients,
+              }
             : m
         )
       );
+      setEditSubmitted(false);
       setShowEditModal(false);
     } catch (err) {
       console.error('Update meal error:', err);
@@ -338,10 +651,18 @@ export default function MealPlan() {
           <p className="text-sm text-gray-400 mt-1">Manage macros and meals templates for the system</p>
         </div>
 
-        {/* Main content: table stacks above stats on small screens, side by side on large */}
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Shared suggestions for the Main Ingredient inputs */}
+        <datalist id="main-ingredient-suggestions">
+          {MAIN_SUGGESTIONS.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+
+        {/* Main content: table stacks above stats on small screens, side by side on large.
+            On large screens both columns stretch to the same height. */}
+        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
           {/* Meal Table */}
-          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0">
+          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0 flex flex-col">
             {/* Table Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
               <div>
@@ -371,11 +692,7 @@ export default function MealPlan() {
                     <option>Fats</option>
                   </select>
                   <button
-                    onClick={() => {
-                      setNewMainRows([]);
-                      setNewSubRows([]);
-                      setShowAddModal(true);
-                    }}
+                    onClick={openAddModal}
                     className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus size={16} /> <span className="hidden sm:inline">Add new meal</span><span className="sm:hidden">Add</span>
@@ -384,9 +701,9 @@ export default function MealPlan() {
               </div>
             </div>
 
-            <div className="overflow-x-auto overflow-y-auto max-h-[560px]">
+            <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'P/C/F', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
@@ -405,7 +722,7 @@ export default function MealPlan() {
                       <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">No meals found.</td>
                     </tr>
                   ) : (
-                    meals.map((meal) => (
+                    pageMeals.map((meal) => (
                       <tr key={meal.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
@@ -464,9 +781,52 @@ export default function MealPlan() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {!loading && meals.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
+                <p className="text-xs text-gray-400">
+                  Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, meals.length)} of {meals.length} meals
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  {pageNumbers().map((p, i) =>
+                    p === '…' ? (
+                      <span key={`gap-${i}`} className="px-2 text-gray-400 text-sm">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
+                          p === currentPage ? 'bg-green-500 text-white' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                  <button
+                    onClick={() => setPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right column: Stats + Outside Food Logs, stacked */}
+          {/* Right column: Stats + Outside Food Logs. The logs panel fills the remaining height
+              so it lines up with the bottom of the meal table. */}
           <div className="w-full lg:w-72 flex flex-col gap-4 flex-shrink-0">
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
               {stats.map((stat, i) => (
@@ -485,7 +845,7 @@ export default function MealPlan() {
             </div>
 
             {/* Outside Food Logs Panel */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-[320px]">
               <div className="flex items-center gap-2 p-5 border-b border-gray-100">
                 <div className="bg-purple-50 w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
                   <ListPlus size={18} className="text-purple-500" />
@@ -495,27 +855,29 @@ export default function MealPlan() {
                   <p className="text-[11px] text-gray-400">User-logged meals outside the system</p>
                 </div>
               </div>
-              <div className="max-h-[520px] overflow-y-auto">
-                {loadingLogs ? (
-                  <p className="text-xs text-gray-400 text-center py-8">Loading logs...</p>
-                ) : outsideLogs.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-8">No outside food logs yet.</p>
-                ) : (
-                  outsideLogs.map((log) => (
-                    <div key={log.id} className="px-5 py-3 border-b border-gray-50 last:border-b-0">
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="text-sm font-medium text-gray-700 leading-tight">{log.food_name}</p>
-                        <span className="text-xs font-semibold text-purple-500 whitespace-nowrap">{log.calories} kcal</span>
+              <div className="relative flex-1 min-h-[240px]">
+                <div className="absolute inset-0 overflow-y-auto">
+                  {loadingLogs ? (
+                    <p className="text-xs text-gray-400 text-center py-8">Loading logs...</p>
+                  ) : outsideLogs.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-8">No outside food logs yet.</p>
+                  ) : (
+                    outsideLogs.map((log) => (
+                      <div key={log.id} className="px-5 py-3 border-b border-gray-50 last:border-b-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-sm font-medium text-gray-700 leading-tight">{log.food_name}</p>
+                          <span className="text-xs font-semibold text-purple-500 whitespace-nowrap">{log.calories} kcal</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1">
+                          <p className="text-[11px] text-gray-400">
+                            {log.user_name} <span className="text-gray-300">·</span> @{log.username}
+                          </p>
+                          <p className="text-[11px] text-gray-400">{formatLogTime(log.logged_at)}</p>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <p className="text-[11px] text-gray-400">
-                          {log.user_name} <span className="text-gray-300">·</span> @{log.username}
-                        </p>
-                        <p className="text-[11px] text-gray-400">{formatLogTime(log.logged_at)}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -532,129 +894,30 @@ export default function MealPlan() {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Meal Name</label>
-                <input
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                  placeholder="e.g. Chicken Adobo"
-                  value={newMeal.name}
-                  onChange={(e) => setNewMeal((p) => ({ ...p, name: e.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Category</label>
-                  <select
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    value={newMeal.category}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, category: e.target.value }))}
-                  >
-                    <option>Protein</option>
-                    <option>Carbs</option>
-                    <option>Vegetable</option>
-                    <option>Fats</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Meal Type</label>
-                  <select
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    value={newMeal.meal_type}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, meal_type: e.target.value }))}
-                  >
-                    <option>Breakfast</option>
-                    <option>Lunch</option>
-                    <option>Dinner</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Calories (kcal)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    placeholder="e.g. 500"
-                    type="number"
-                    value={newMeal.calories}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, calories: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Protein (g)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    placeholder="0"
-                    type="number"
-                    value={newMeal.protein}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, protein: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Carbs (g)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                    placeholder="0"
-                    type="number"
-                    value={newMeal.carbs}
-                    onChange={(e) => setNewMeal((p) => ({ ...p, carbs: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Fats (g)</label>
-                <input
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                  placeholder="0"
-                  type="number"
-                  value={newMeal.fats}
-                  onChange={(e) => setNewMeal((p) => ({ ...p, fats: e.target.value }))}
-                />
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <IngredientListEditor
-                  label="Main Ingredients"
-                  hint="Defines the dish (e.g. chicken, beef, tofu). If any has an allergen, the whole meal is excluded — no substitute possible."
-                  rows={newMainRows}
-                  onChange={setNewMainRows}
-                />
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <IngredientListEditor
-                  label="Sub Ingredients"
-                  hint="Seasonings, sauces, extras (e.g. soy sauce, milk). If any has an allergen, a substitute will be used automatically to keep the meal on the plan."
-                  rows={newSubRows}
-                  onChange={setNewSubRows}
-                  showSubstitute
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions</label>
-                <textarea
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-[100px] resize-none"
-                  placeholder="e.g. 1. Marinate chicken in soy sauce and vinegar for 30 minutes. 2. Sauté garlic and onions..."
-                  value={newMeal.instructions}
-                  onChange={(e) => setNewMeal((p) => ({ ...p, instructions: e.target.value }))}
-                />
-              </div>
-              <div className="flex gap-3 mt-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAdd}
-                  disabled={saving}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
-                >
-                  {saving ? 'Adding...' : 'Add Meal'}
-                </button>
-              </div>
+            <MealFormFields
+              form={newMeal}
+              setForm={(patch) => setNewMeal((p) => ({ ...p, ...patch }))}
+              mainRows={newMainRows}
+              setMainRows={setNewMainRows}
+              subRows={newSubRows}
+              setSubRows={setNewSubRows}
+              submitted={addSubmitted}
+              showMealType
+            />
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={saving}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Adding...' : 'Add Meal'}
+              </button>
             </div>
           </div>
         </div>
@@ -670,112 +933,30 @@ export default function MealPlan() {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Meal Name</label>
-                <input
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
-                  value={selectedMeal.name}
-                  onChange={(e) => setSelectedMeal((p) => (p ? { ...p, name: e.target.value } : p))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Category</label>
-                  <select
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    value={selectedMeal.category}
-                    onChange={(e) => setSelectedMeal((p) => (p ? { ...p, category: e.target.value } : p))}
-                  >
-                    <option>Protein</option>
-                    <option>Carbs</option>
-                    <option>Vegetable</option>
-                    <option>Fats</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Calories (kcal)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    type="number"
-                    value={selectedMeal.calories}
-                    onChange={(e) => setSelectedMeal((p) => (p ? { ...p, calories: Number(e.target.value) } : p))}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Protein (g)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    type="number"
-                    value={selectedMeal.protein}
-                    onChange={(e) => setSelectedMeal((p) => (p ? { ...p, protein: Number(e.target.value) } : p))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Carbs (g)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    type="number"
-                    value={selectedMeal.carbs}
-                    onChange={(e) => setSelectedMeal((p) => (p ? { ...p, carbs: Number(e.target.value) } : p))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Fats (g)</label>
-                  <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none"
-                    type="number"
-                    value={selectedMeal.fats}
-                    onChange={(e) => setSelectedMeal((p) => (p ? { ...p, fats: Number(e.target.value) } : p))}
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <IngredientListEditor
-                  label="Main Ingredients"
-                  hint="Defines the dish (e.g. chicken, beef, tofu). If any has an allergen, the whole meal is excluded — no substitute possible."
-                  rows={editMainRows}
-                  onChange={setEditMainRows}
-                />
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <IngredientListEditor
-                  label="Sub Ingredients"
-                  hint="Seasonings, sauces, extras (e.g. soy sauce, milk). If any has an allergen, a substitute will be used automatically to keep the meal on the plan."
-                  rows={editSubRows}
-                  onChange={setEditSubRows}
-                  showSubstitute
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Cooking Instructions</label>
-                <textarea
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-[100px] resize-none"
-                  placeholder="e.g. 1. Marinate chicken in soy sauce and vinegar for 30 minutes. 2. Sauté garlic and onions..."
-                  value={selectedMeal.instructions || ''}
-                  onChange={(e) => setSelectedMeal((p) => (p ? { ...p, instructions: e.target.value } : p))}
-                />
-              </div>
-              <div className="flex gap-3 mt-2">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  disabled={saving}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+            <MealFormFields
+              form={editForm}
+              setForm={(patch) => setEditForm((p) => ({ ...p, ...patch }))}
+              mainRows={editMainRows}
+              setMainRows={setEditMainRows}
+              subRows={editSubRows}
+              setSubRows={setEditSubRows}
+              submitted={editSubmitted}
+              showMealType={false}
+            />
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>

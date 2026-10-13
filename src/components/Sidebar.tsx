@@ -2,12 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Utensils, Dumbbell, Ticket, LogOut, ChevronDown, Menu, X } from 'lucide-react';
 import Logo from './Logo';
+import api from '../config/api';
 
 const navItems = [
   { label: 'Dashboard', Icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Account Management', Icon: Users, path: '/users' },
   { label: 'Meal Plan Management', Icon: Utensils, path: '/meal-plan' },
-  { label: 'Workout Plan Management', Icon: Dumbbell, path: '/workout' },
+  { label: 'Workout Management', Icon: Dumbbell, path: '/workout' },
   { label: 'Ticketing Support', Icon: Ticket, path: '/feedback' },
 ];
 
@@ -16,6 +17,28 @@ export default function Sidebar({ active }: { active: string }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [newTickets, setNewTickets] = useState(0);
+
+  // Badge on "Ticketing Support": number of NEW tickets, refreshed every 15s.
+  // It drops automatically once the admin opens a ticket (New -> Pending) or resolves it.
+  useEffect(() => {
+    let cancelled = false;
+    const loadCount = async () => {
+      try {
+        const res = await api.get('/tickets');
+        if (!cancelled) setNewTickets(parseInt(res.data?.summary?.new_count, 10) || 0);
+      } catch {
+        /* ignore — badge simply stays as is */
+      }
+    };
+    loadCount();
+    const interval = setInterval(loadCount, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -27,9 +50,9 @@ export default function Sidebar({ active }: { active: string }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-   const handleLogout = () => {
+  const handleLogout = () => {
     localStorage.removeItem('adminToken');
-    navigate('/');
+    navigate('/login');
   };
 
   const handleNavClick = (path: string) => {
@@ -77,7 +100,7 @@ export default function Sidebar({ active }: { active: string }) {
 
         <nav className="flex flex-col gap-1 flex-1">
           {navItems.map(item => {
-            const isActive = active === item.label;
+            const isActive = active === item.label || (item.path === '/workout' && active.startsWith('Workout'));
             return (
               <button
                 key={item.label}
@@ -89,7 +112,16 @@ export default function Sidebar({ active }: { active: string }) {
                 }`}
               >
                 <item.Icon size={18} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.path === '/feedback' && newTickets > 0 && (
+                  <span
+                    className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center ${
+                      isActive ? 'bg-white text-green-600' : 'bg-red-500 text-white'
+                    }`}
+                  >
+                    {newTickets > 99 ? '99+' : newTickets}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -103,7 +135,10 @@ export default function Sidebar({ active }: { active: string }) {
                 <p className="text-xs text-gray-400">Administrator</p>
               </div>
               <button
-                onClick={handleLogout}
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  setShowLogoutConfirm(true);
+                }}
                 className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors text-left"
               >
                 <LogOut size={16} />
@@ -123,6 +158,33 @@ export default function Sidebar({ active }: { active: string }) {
           </button>
         </div>
       </div>
+
+      {/* Logout confirmation */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] px-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[380px] shadow-xl">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4">
+              <LogOut size={22} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Log out?</h3>
+            <p className="text-sm text-gray-500 mb-6">Are you sure you want to log out of the admin panel?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"
+              >
+                No
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors"
+              >
+                Yes, log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Spacer — reserves space in the layout so page content never sits under the fixed sidebar */}
       <div className="hidden lg:block w-56 flex-shrink-0" />
