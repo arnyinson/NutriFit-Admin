@@ -207,9 +207,9 @@ export default function Workout() {
         </div>
 
         {/* Main content: table stacks above breakdown panel on mobile, side by side on large screens */}
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
           {/* Exercise Table */}
-          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0">
+          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0 flex flex-col">
             {/* Table Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
               <h2 className="text-base font-bold text-gray-800">Exercise</h2>
@@ -263,7 +263,9 @@ export default function Workout() {
               </div>
             </div>
 
-            <div className="overflow-x-auto overflow-y-auto max-h-[560px]">
+            {/* The table area fills the full height of the card (which matches the right column); rows scroll inside it. */}
+            <div className="relative flex-1 min-h-[420px]">
+            <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
               <table className="w-full min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
                   <tr>
@@ -325,6 +327,7 @@ export default function Workout() {
                   )}
                 </tbody>
               </table>
+            </div>
             </div>
           </div>
 

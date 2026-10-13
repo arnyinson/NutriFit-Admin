@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, Archive, RotateCcw, X, CheckCircle2, AlertTriangle, Dumbbell,
+  Users as UsersIcon, UserCheck, UserX,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
@@ -84,6 +85,7 @@ export default function Users() {
   const [goalFilter, setGoalFilter] = useState('All Goal');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [page, setPage] = useState(1);
+  const [counts, setCounts] = useState({ total: 0, active: 0, inactive: 0, archived: 0 });
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -129,6 +131,26 @@ export default function Users() {
     return () => clearTimeout(timeout);
   }, [loadUsers]);
 
+  // Totals are always computed from ALL users, regardless of the search / filters below.
+  const loadCounts = useCallback(async () => {
+    try {
+      const res = await api.get('/users');
+      const all: { is_active: boolean; archived: boolean }[] = res.data.users;
+      setCounts({
+        total: all.length,
+        active: all.filter((u) => !u.archived && u.is_active).length,
+        inactive: all.filter((u) => !u.archived && !u.is_active).length,
+        archived: all.filter((u) => u.archived).length,
+      });
+    } catch (err) {
+      console.error('Load user counts error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCounts();
+  }, [loadCounts]);
+
   // Open the detail modal and fetch the full profile + workout history.
   const openDetail = async (id: string) => {
     setDetailUserId(id);
@@ -156,6 +178,7 @@ export default function Users() {
     setDetail((d) => (d && d.user.id === id ? { ...d, user: { ...d.user, is_active: !currentStatus } } : d));
     try {
       await api.patch(`/users/${id}/status`, { is_active: !currentStatus });
+      loadCounts();
     } catch (err) {
       console.error('Toggle status error:', err);
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, is_active: currentStatus } : u)));
@@ -169,6 +192,7 @@ export default function Users() {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, archived: false } : u)));
     try {
       await api.patch(`/users/${id}/unarchive`);
+      loadCounts();
       if (statusFilter === 'Archived') {
         loadUsers();
       }
@@ -278,6 +302,28 @@ export default function Users() {
             Manage and monitor all NutriFit users. Click a user to view their full profile and workout progress.
             Users inactive for 30+ days are automatically archived (stored, not deleted).
           </p>
+        </div>
+
+        {/* Totals */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+          {[
+            { label: 'Total Users', value: counts.total, Icon: UsersIcon, color: 'text-blue-500', bg: 'bg-blue-50' },
+            { label: 'Active', value: counts.active, Icon: UserCheck, color: 'text-green-500', bg: 'bg-green-50' },
+            { label: 'Inactive', value: counts.inactive, Icon: UserX, color: 'text-orange-500', bg: 'bg-orange-50' },
+            { label: 'Archived', value: counts.archived, Icon: Archive, color: 'text-gray-500', bg: 'bg-gray-100' },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0`}>
+                  <stat.Icon size={22} className={stat.color} />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-xs text-gray-500 truncate">{stat.label}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Filters */}
@@ -716,4 +762,4 @@ export default function Users() {
       )}
     </div>
   );
-}
+} 
