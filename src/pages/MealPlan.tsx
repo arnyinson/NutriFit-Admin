@@ -660,11 +660,11 @@ export default function MealPlan() {
 
         {/* Main content: table stacks above stats on small screens, side by side on large.
             On large screens both columns stretch to the same height. */}
-        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+        <div className="flex flex-col xl:flex-row gap-6 items-stretch">
           {/* Meal Table */}
-          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0 flex flex-col">
+          <div className="w-full xl:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0 flex flex-col">
             {/* Table Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
+            <div className="flex flex-col sm:flex-row xl:flex-col 2xl:flex-row sm:items-center xl:items-stretch 2xl:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
               <div>
                 <h2 className="text-base font-bold text-gray-800">Meal table</h2>
                 <p className="text-xs text-gray-400">Manage all meals available in the system</p>
@@ -701,7 +701,65 @@ export default function MealPlan() {
               </div>
             </div>
 
-            <div className="overflow-x-auto flex-1">
+            {/* Phone: stacked cards */}
+            <div className="md:hidden flex-1">
+              {loading ? (
+                <p className="px-4 py-12 text-center text-gray-400 text-sm">Loading meals...</p>
+              ) : meals.length === 0 ? (
+                <p className="px-4 py-12 text-center text-gray-400 text-sm">No meals found.</p>
+              ) : (
+                pageMeals.map((meal) => (
+                  <div key={meal.id} className="px-4 py-3 border-b border-gray-50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                          <Utensils size={14} className="text-orange-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-700 text-sm break-words">{meal.name}</p>
+                          <p className="text-[11px] text-gray-400">{meal.meal_type}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => handleEdit(meal)} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg" aria-label="Edit meal">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => handleDelete(meal.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" aria-label="Delete meal">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 text-xs text-gray-500">
+                      <span
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          meal.category === 'Protein'
+                            ? 'bg-green-50 text-green-600'
+                            : meal.category === 'Carbs'
+                            ? 'bg-orange-50 text-orange-500'
+                            : meal.category === 'Fats'
+                            ? 'bg-purple-50 text-purple-500'
+                            : 'bg-blue-50 text-blue-500'
+                        }`}
+                      >
+                        {meal.category}
+                      </span>
+                      <span>{meal.calories} kcal</span>
+                      <span>P/C/F {meal.protein}/{meal.carbs}/{meal.fats}g</span>
+                    </div>
+                    {meal.allergens && meal.allergens.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {meal.allergens.map((a, i) => (
+                          <span key={i} className="text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full">{a}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Tablet/desktop: table */}
+            <div className="hidden md:block overflow-x-auto flex-1">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -827,8 +885,8 @@ export default function MealPlan() {
 
           {/* Right column: Stats + Outside Food Logs. The logs panel fills the remaining height
               so it lines up with the bottom of the meal table. */}
-          <div className="w-full lg:w-72 flex flex-col gap-4 flex-shrink-0">
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+          <div className="w-full xl:w-72 flex flex-col gap-4 flex-shrink-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-1 gap-4">
               {stats.map((stat, i) => (
                 <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                   <div className="flex items-center gap-3">

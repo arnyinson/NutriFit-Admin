@@ -360,6 +360,53 @@ export default function Users() {
         }
     : null;
 
+  const renderActions = (user: User) => (
+    <>
+                        {user.banned ? (
+                          <button
+                            onClick={() => setPending({ type: 'unban', user: { id: user.id, name: user.name, is_active: user.is_active } })}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          >
+                            <RotateCcw size={13} />
+                            Unban
+                          </button>
+                        ) : user.archived ? (
+                          <button
+                            onClick={() => setPending({ type: 'unarchive', user: { id: user.id, name: user.name, is_active: user.is_active } })}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          >
+                            <RotateCcw size={13} />
+                            Unarchive
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                setPending({
+                                  type: user.is_active ? 'deactivate' : 'activate',
+                                  user: { id: user.id, name: user.name, is_active: user.is_active },
+                                })
+                              }
+                              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                                user.is_active
+                                  ? 'bg-orange-50 text-orange-500 hover:bg-orange-100'
+                                  : 'bg-green-50 text-green-600 hover:bg-green-100'
+                              }`}
+                            >
+                              {user.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => openBan(user.id, user.name)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-red-50 text-red-500 hover:bg-red-100"
+                            >
+                              <Ban size={12} />
+                              Ban
+                            </button>
+                          </div>
+                        )}
+    </>
+  );
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar active="Account Management" />
@@ -375,22 +422,25 @@ export default function Users() {
         </div>
 
         {/* Totals */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6 mb-6">
           {[
             { label: 'Total Users', value: counts.total, Icon: UsersIcon, color: 'text-blue-500', bg: 'bg-blue-50' },
             { label: 'Active', value: counts.active, Icon: UserCheck, color: 'text-green-500', bg: 'bg-green-50' },
             { label: 'Inactive', value: counts.inactive, Icon: UserX, color: 'text-orange-500', bg: 'bg-orange-50' },
             { label: 'Archived', value: counts.archived, Icon: Archive, color: 'text-gray-500', bg: 'bg-gray-100' },
             { label: 'Banned', value: counts.banned, Icon: Ban, color: 'text-red-600', bg: 'bg-red-50' },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          ].map((stat, idx) => (
+            <div
+              key={stat.label}
+              className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 ${idx === 0 ? 'col-span-2 md:col-span-1' : ''}`}
+            >
               <div className="flex items-center gap-3">
                 <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0`}>
                   <stat.Icon size={22} className={stat.color} />
                 </div>
                 <div className="min-w-0">
                   <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs text-gray-500 truncate">{stat.label}</p>
+                  <p className="text-xs text-gray-500 leading-tight">{stat.label}</p>
                 </div>
               </div>
             </div>
@@ -437,12 +487,51 @@ export default function Users() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px]">
+          {/* Phones, tablets and small laptops: stacked cards (no sideways scrolling) */}
+          <div className="xl:hidden divide-y divide-gray-50">
+            {loading ? (
+              <p className="px-4 py-12 text-center text-gray-400 text-sm">Loading users...</p>
+            ) : paginatedUsers.length === 0 ? (
+              <p className="px-4 py-12 text-center text-gray-400 text-sm">No users found.</p>
+            ) : (
+              paginatedUsers.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => openDetail(user.id)}
+                  className={`p-4 cursor-pointer hover:bg-green-50/40 transition-colors ${user.archived ? 'opacity-70' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0">
+                      {user.name[0]}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-gray-700 truncate">{user.name}</p>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap ${getStatusColor(user)}`}>
+                          {user.banned ? <Ban size={10} /> : user.archived && <Archive size={10} />}
+                          {getStatusLabel(user)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {user.dietary_goal} · {user.age ?? '—'} yrs · {formatLastLogin(user.last_login)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 pl-12" onClick={(e) => e.stopPropagation()}>
+                    {renderActions(user)}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden xl:block overflow-x-auto">
+            <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['Name', 'Email', 'Age', 'Goal', 'Last Login', 'Status', 'Action'].map((h) => (
-                    <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th key={h} className="text-left px-3 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -451,13 +540,13 @@ export default function Users() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
+                    <td colSpan={7} className="px-3 py-12 text-center text-gray-400 text-sm">
                       Loading users...
                     </td>
                   </tr>
                 ) : paginatedUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
+                    <td colSpan={7} className="px-3 py-12 text-center text-gray-400 text-sm">
                       No users found.
                     </td>
                   </tr>
@@ -468,7 +557,7 @@ export default function Users() {
                       onClick={() => openDetail(user.id)}
                       className={`border-b border-gray-50 hover:bg-green-50/40 transition-colors cursor-pointer ${user.archived ? 'opacity-70' : ''}`}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0">
                             {user.name[0]}
@@ -476,11 +565,11 @@ export default function Users() {
                           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{user.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.email}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{user.age ?? '—'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{formatLastLogin(user.last_login)}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={user.email}>{user.email}</td>
+                      <td className="px-3 py-4 text-sm text-gray-500">{user.age ?? '—'}</td>
+                      <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
+                      <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{formatLastLogin(user.last_login)}</td>
+                      <td className="px-3 py-4">
                         <span
                           className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(user)}`}
                         >
@@ -488,49 +577,8 @@ export default function Users() {
                           {getStatusLabel(user)}
                         </span>
                       </td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        {user.banned ? (
-                          <button
-                            onClick={() => setPending({ type: 'unban', user: { id: user.id, name: user.name, is_active: user.is_active } })}
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100"
-                          >
-                            <RotateCcw size={13} />
-                            Unban
-                          </button>
-                        ) : user.archived ? (
-                          <button
-                            onClick={() => setPending({ type: 'unarchive', user: { id: user.id, name: user.name, is_active: user.is_active } })}
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100"
-                          >
-                            <RotateCcw size={13} />
-                            Unarchive
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() =>
-                                setPending({
-                                  type: user.is_active ? 'deactivate' : 'activate',
-                                  user: { id: user.id, name: user.name, is_active: user.is_active },
-                                })
-                              }
-                              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-                                user.is_active
-                                  ? 'bg-orange-50 text-orange-500 hover:bg-orange-100'
-                                  : 'bg-green-50 text-green-600 hover:bg-green-100'
-                              }`}
-                            >
-                              {user.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => openBan(user.id, user.name)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap bg-red-50 text-red-500 hover:bg-red-100"
-                            >
-                              <Ban size={12} />
-                              Ban
-                            </button>
-                          </div>
-                        )}
+                      <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
+                        {renderActions(user)}
                       </td>
                     </tr>
                   ))

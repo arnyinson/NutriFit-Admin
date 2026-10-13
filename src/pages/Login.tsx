@@ -33,8 +33,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-lg p-10 w-96 flex flex-col items-center gap-4">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-10 w-full max-w-sm flex flex-col items-center gap-4">
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-2">
@@ -44,9 +44,9 @@ export default function Login() {
 
         {/* Username */}
         <div className="w-full flex items-center border border-gray-200 rounded-xl px-4 bg-gray-50 gap-2">
-          <User size={18} className="text-gray-400" />
+          <User size={18} className="text-gray-400 flex-shrink-0" />
           <input
-            className="flex-1 py-3 bg-transparent outline-none text-sm text-gray-700"
+            className="flex-1 min-w-0 py-3 bg-transparent outline-none text-sm text-gray-700"
             type="text"
             placeholder="Admin"
             value={username}
@@ -58,9 +58,9 @@ export default function Login() {
 
         {/* Password */}
         <div className="w-full flex items-center border border-gray-200 rounded-xl px-4 bg-gray-50 gap-2">
-          <Lock size={18} className="text-gray-400" />
+          <Lock size={18} className="text-gray-400 flex-shrink-0" />
           <input
-            className="flex-1 py-3 bg-transparent outline-none text-sm text-gray-700"
+            className="flex-1 min-w-0 py-3 bg-transparent outline-none text-sm text-gray-700"
             type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={password}
@@ -69,8 +69,10 @@ export default function Login() {
             disabled={loading}
           />
           <button
-            className="p-1 hover:opacity-70"
+            type="button"
+            className="p-1 hover:opacity-70 flex-shrink-0"
             onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? (
               <EyeOff size={18} className="text-gray-400" />

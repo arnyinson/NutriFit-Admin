@@ -207,18 +207,18 @@ export default function Workout() {
         </div>
 
         {/* Main content: table stacks above breakdown panel on mobile, side by side on large screens */}
-        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+        <div className="flex flex-col xl:flex-row gap-6 items-stretch">
           {/* Exercise Table */}
-          <div className="w-full lg:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0 flex flex-col">
+          <div className="w-full xl:flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 min-w-0 flex flex-col">
             {/* Table Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
+            <div className="flex flex-col sm:flex-row xl:flex-col 2xl:flex-row sm:items-center xl:items-stretch 2xl:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
               <h2 className="text-base font-bold text-gray-800">Exercise</h2>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
                 <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
                   <Search size={16} className="text-gray-400 flex-shrink-0" />
                   <input
-                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-full sm:w-64"
-                    placeholder="Search exercises, muscle groups, equipment..."
+                    className="py-2.5 bg-transparent outline-none text-sm text-gray-700 w-full sm:w-44"
+                    placeholder="Search exercises..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -258,19 +258,60 @@ export default function Workout() {
                   onClick={() => { setAddSubmitted(false); setShowAddModal(true); }}
                   className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
-                  <Plus size={16} /> <span className="hidden sm:inline">Add new exercise</span><span className="sm:hidden">Add</span>
+                  <Plus size={16} /> <span className="hidden sm:inline">Add exercise</span><span className="sm:hidden">Add</span>
                 </button>
               </div>
             </div>
 
             {/* The table area fills the full height of the card (which matches the right column); rows scroll inside it. */}
-            <div className="relative flex-1 min-h-[420px]">
-            <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
-              <table className="w-full min-w-[640px]">
+            <div className="xl:relative flex-1 xl:min-h-[420px]">
+            {/* Phone: stacked cards */}
+            <div className="md:hidden max-h-[560px] overflow-y-auto">
+              {loading ? (
+                <p className="px-4 py-12 text-center text-gray-400 text-sm">Loading exercises...</p>
+              ) : exercises.length === 0 ? (
+                <p className="px-4 py-12 text-center text-gray-400 text-sm">No exercises found.</p>
+              ) : (
+                exercises.map((exercise) => (
+                  <div key={exercise.id} className="px-4 py-3 border-b border-gray-50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                          <Dumbbell size={16} className="text-green-600" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-700 break-words min-w-0">{exercise.name}</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => { setSelectedExercise({ ...exercise }); setEditSubmitted(false); setShowEditModal(true); }}
+                          className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg"
+                          aria-label="Edit exercise"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => handleDelete(exercise.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" aria-label="Delete exercise">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 text-xs text-gray-500">
+                      <span className={`font-semibold px-2.5 py-0.5 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>{exercise.difficulty}</span>
+                      <span>{exercise.muscle_group}</span>
+                      <span className="text-gray-300">·</span>
+                      <span>{exercise.equipment}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Tablet/desktop: table */}
+            <div className="hidden md:block max-h-[560px] overflow-auto xl:max-h-none xl:absolute xl:inset-0">
+              <table className="w-full min-w-[560px]">
                 <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
                   <tr>
                     {['Exercise Name', 'Muscle Groups', 'Equipment', 'Difficulty', 'Action'].map((h) => (
-                      <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                      <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -279,18 +320,18 @@ export default function Workout() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">Loading exercises...</td>
+                      <td colSpan={5} className="px-4 py-12 text-center text-gray-400 text-sm">Loading exercises...</td>
                     </tr>
                   ) : exercises.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">No exercises found.</td>
+                      <td colSpan={5} className="px-4 py-12 text-center text-gray-400 text-sm">No exercises found.</td>
                     </tr>
                   ) : (
                     exercises.map((exercise) => (
                       <tr key={exercise.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
                               <Dumbbell size={18} className="text-green-600" />
                             </div>
                             <div className="flex items-center gap-1.5">
@@ -299,14 +340,14 @@ export default function Workout() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{exercise.muscle_group}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{exercise.equipment}</td>
-                        <td className="px-6 py-4">
-                          <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${getDifficultyColor(exercise.difficulty)}`}>
+                        <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{exercise.muscle_group}</td>
+                        <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{exercise.equipment}</td>
+                        <td className="px-3 py-3">
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${getDifficultyColor(exercise.difficulty)}`}>
                             {exercise.difficulty}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => { setSelectedExercise({ ...exercise }); setEditSubmitted(false); setShowEditModal(true); }}
@@ -332,7 +373,7 @@ export default function Workout() {
           </div>
 
           {/* Right column: Total + breakdowns, stacked */}
-          <div className="w-full lg:w-72 flex flex-col gap-4 flex-shrink-0">
+          <div className="w-full xl:w-72 flex flex-col gap-4 flex-shrink-0">
             {/* Total Exercise */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
@@ -346,7 +387,7 @@ export default function Workout() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
               {/* Muscle Groups breakdown */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <div className="flex items-center gap-2 mb-3">

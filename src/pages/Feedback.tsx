@@ -203,16 +203,16 @@ export default function Feedback() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6 mb-6 sm:mb-8">
           {stats.map((stat, i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
                 <div className={`${stat.bg} w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0`}>
                   <stat.Icon size={22} className={stat.color} />
                 </div>
                 <div className="min-w-0">
                   <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs text-gray-500 truncate">{stat.label}</p>
+                  <p className="text-xs text-gray-500">{stat.label}</p>
                 </div>
               </div>
             </div>
@@ -221,7 +221,7 @@ export default function Feedback() {
 
         {/* Filters */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 mb-6">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
             <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
               <Search size={16} className="text-gray-400 flex-shrink-0" />
               <input
@@ -233,21 +233,21 @@ export default function Feedback() {
             </div>
             <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 bg-gray-50">
               <input
-                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-full sm:w-32"
+                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-full min-w-0 md:w-28 xl:w-32"
                 type="date"
                 value={dateStart}
                 onChange={(e) => setDateStart(e.target.value)}
               />
               <span className="text-gray-300">—</span>
               <input
-                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-full sm:w-32"
+                className="py-2.5 bg-transparent outline-none text-sm text-gray-500 w-full min-w-0 md:w-28 xl:w-32"
                 type="date"
                 value={dateEnd}
                 onChange={(e) => setDateEnd(e.target.value)}
               />
             </div>
             <select
-              className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+              className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer md:flex-shrink-0"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -261,12 +261,62 @@ export default function Feedback() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px]">
+          {/* Phone/tablet: stacked cards */}
+          <div className="xl:hidden">
+            {loading ? (
+              <p className="px-4 py-12 text-center text-gray-400 text-sm">Loading tickets...</p>
+            ) : paginatedTickets.length === 0 ? (
+              <p className="px-4 py-12 text-center text-gray-400 text-sm">No tickets found.</p>
+            ) : (
+              paginatedTickets.map((ticket) => (
+                <div key={ticket.id} className="px-4 sm:px-6 py-4 border-b border-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">
+                        {ticket.user_name[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-700 truncate">{ticket.user_name}</p>
+                        <p className="text-[11px] font-mono text-gray-400">#{ticket.id.slice(0, 8).toUpperCase()}</p>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${getStatusColor(ticket.status)}`}>
+                      {ticket.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2 line-clamp-2 break-words">{ticket.message}</p>
+                  <div className="flex items-center justify-between gap-3 mt-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {ticket.image_url && (
+                        <button
+                          onClick={() => setViewingImage(ticket.image_url)}
+                          className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 hover:opacity-80 flex-shrink-0"
+                          aria-label="View attachment"
+                        >
+                          <img src={ticket.image_url} alt="Attachment" className="w-full h-full object-cover" />
+                        </button>
+                      )}
+                      <span className="text-xs text-gray-400">{formatDateTime(ticket.created_at)}</span>
+                    </div>
+                    <button
+                      onClick={() => handleView(ticket)}
+                      className="bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden xl:block overflow-x-auto">
+            <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['Ticket ID', 'User', 'Message', 'Image', 'Date', 'Status', 'Action'].map((h) => (
-                    <th key={h} className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th key={h} className="text-left px-4 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -275,19 +325,19 @@ export default function Feedback() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">Loading tickets...</td>
                   </tr>
                 ) : paginatedTickets.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">No tickets found.</td>
                   </tr>
                 ) : (
                   paginatedTickets.map((ticket) => (
                     <tr key={ticket.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <span className="text-xs font-mono font-semibold text-gray-500 whitespace-nowrap">#{ticket.id.slice(0, 8).toUpperCase()}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">
                             {ticket.user_name[0]}
@@ -295,8 +345,8 @@ export default function Feedback() {
                           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{ticket.user_name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{ticket.message}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 text-sm text-gray-500 max-w-[220px] truncate">{ticket.message}</td>
+                      <td className="px-4 py-4">
                         {ticket.image_url ? (
                           <button
                             onClick={() => setViewingImage(ticket.image_url)}
@@ -308,15 +358,15 @@ export default function Feedback() {
                           <span className="text-xs text-gray-300">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
                         {formatDateTime(ticket.created_at)}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(ticket.status)}`}>
                           {ticket.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <button
                           onClick={() => handleView(ticket)}
                           className="bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
@@ -332,7 +382,7 @@ export default function Feedback() {
           </div>
 
           {/* Pagination */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
             <p className="text-sm text-gray-400">Showing {paginatedTickets.length} of {tickets.length} tickets</p>
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <button

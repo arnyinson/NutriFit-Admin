@@ -33,24 +33,30 @@ const goalColors: Record<string, string> = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [goalDistribution, setGoalDistribution] = useState<GoalDistributionItem[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
 
+  const loadDashboard = async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await api.get('/users/admin/dashboard-stats');
+      setStats(res.data.stats);
+      setGoalDistribution(res.data.goalDistribution);
+      setRecentUsers(res.data.recentUsers);
+    } catch (err) {
+      console.error('Load dashboard error:', err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        const res = await api.get('/users/admin/dashboard-stats');
-        setStats(res.data.stats);
-        setGoalDistribution(res.data.goalDistribution);
-        setRecentUsers(res.data.recentUsers);
-      } catch (err) {
-        console.error('Load dashboard error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalGoalCount = goalDistribution.reduce((sum, g) => sum + Number(g.count), 0);
@@ -112,8 +118,20 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
         </div>
 
+        {error && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-red-50 border border-red-100 text-red-600 rounded-2xl px-5 py-4">
+            <p className="text-sm">Unable to load the dashboard data. The server may be waking up.</p>
+            <button
+              onClick={loadDashboard}
+              className="self-start sm:self-auto bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
         {/* Welcome banner */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-5 sm:p-6 mb-8 shadow-sm">
+        <div className="relative overflow-hidden bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-5 sm:p-6 mb-6 lg:mb-8 shadow-sm">
           <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
           <div className="absolute right-16 bottom-[-3rem] w-28 h-28 rounded-full bg-purple-400/20" />
           <div className="relative">
@@ -126,12 +144,12 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards — clickable, navigates to related page */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
           {statCards.map((stat, i) => (
             <button
               key={i}
               onClick={() => navigate(stat.path)}
-              className={`group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ring-1 ring-transparent transition-all hover:shadow-md hover:-translate-y-0.5 ${stat.ring} relative overflow-hidden text-left cursor-pointer`}
+              className={`group bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 ring-1 ring-transparent transition-all hover:shadow-md hover:-translate-y-0.5 ${stat.ring} relative overflow-hidden text-left cursor-pointer`}
             >
               <div className={`absolute left-0 top-0 h-1 w-full ${stat.bar}`} />
               <div className="flex items-center gap-3 mb-1">
@@ -140,16 +158,16 @@ export default function Dashboard() {
                 </div>
                 <div className="min-w-0">
                   <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs text-gray-500 truncate">{stat.label}</p>
+                  <p className="text-xs text-gray-500 leading-tight">{stat.label}</p>
                 </div>
               </div>
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-6 mb-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Goal Distribution */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 xl:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp size={16} className="text-green-500" />
               <h2 className="text-base font-bold text-gray-800">Goal Distribution</h2>
@@ -157,23 +175,25 @@ export default function Dashboard() {
             {totalGoalCount === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">No user data yet.</p>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+              <div className="flex flex-col sm:flex-row xl:flex-col items-center gap-6">
                 <div className="flex justify-center flex-shrink-0">
                   <div
-                    className="relative w-32 h-32 rounded-full"
+                    className="relative w-36 h-36 rounded-full"
                     style={{ background: buildConicGradient() }}
                   >
-                    <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-gray-700">{totalGoalCount} users</span>
+                    <div className="absolute inset-5 bg-white rounded-full flex flex-col items-center justify-center">
+                      <span className="text-lg font-bold text-gray-800 leading-none">{totalGoalCount}</span>
+                      <span className="text-[11px] text-gray-400 mt-1">users</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 flex-1 w-full">
+                <div className="flex flex-col gap-3 flex-1 w-full min-w-0">
                   {goalDistribution.map((goal, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full flex-shrink-0 ${goalColors[goal.dietary_goal] || 'bg-gray-400'}`} />
-                      <span className="text-xs text-gray-600">{goal.dietary_goal}</span>
-                      <span className="text-xs font-bold text-gray-800 ml-auto">
+                      <span className="text-sm text-gray-600 truncate">{goal.dietary_goal}</span>
+                      <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">{Number(goal.count)} users</span>
+                      <span className="text-sm font-bold text-gray-800 w-10 text-right">
                         {Math.round((Number(goal.count) / totalGoalCount) * 100)}%
                       </span>
                     </div>
@@ -182,62 +202,92 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Recent Users */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-base font-bold text-gray-800">Recent Users</h2>
-            <button
-              onClick={() => navigate('/users')}
-              className="flex items-center gap-1 text-xs text-green-500 font-semibold hover:underline flex-shrink-0"
-            >
-              View all <ArrowRight size={12} />
-            </button>
-          </div>
-          {recentUsers.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">No users yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[480px]">
-                <thead>
-                  <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                    <th className="pb-3 font-medium">Users</th>
-                    <th className="pb-3 font-medium">Gmail</th>
-                    <th className="pb-3 font-medium">Age</th>
-                    <th className="pb-3 font-medium">Goal</th>
-                    <th className="pb-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentUsers.map((user, i) => (
-                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
-                            {user.name[0]}
-                          </div>
-                          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{user.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 text-sm text-gray-500 whitespace-nowrap">{user.email}</td>
-                      <td className="py-3 text-sm text-gray-500">{user.age}</td>
-                      <td className="py-3 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
-                      <td className="py-3">
-                        <span
-                          className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${
-                            user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
-                          }`}
-                        >
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Recent Users */}
+          <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 xl:col-span-2 min-w-0">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-bold text-gray-800">Recent Users</h2>
+              <button
+                onClick={() => navigate('/users')}
+                className="flex items-center gap-1 text-xs text-green-500 font-semibold hover:underline flex-shrink-0"
+              >
+                View all <ArrowRight size={12} />
+              </button>
             </div>
-          )}
+            {recentUsers.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No users yet.</p>
+            ) : (
+              <>
+                {/* Phones: stacked cards (no sideways scrolling) */}
+                <div className="md:hidden flex flex-col divide-y divide-gray-50">
+                  {recentUsers.map((user, i) => (
+                    <div key={i} className="py-3 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                        {user.name[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-700 truncate">{user.name}</p>
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                              user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
+                            }`}
+                          >
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {user.dietary_goal} · {user.age} yrs
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Tablets and up: table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                        <th className="pb-3 font-medium">Users</th>
+                        <th className="pb-3 font-medium">Email</th>
+                        <th className="pb-3 font-medium">Age</th>
+                        <th className="pb-3 font-medium">Goal</th>
+                        <th className="pb-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentUsers.map((user, i) => (
+                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="py-3 pr-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                                {user.name[0]}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{user.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-3 text-sm text-gray-500 max-w-[220px] truncate">{user.email}</td>
+                          <td className="py-3 pr-3 text-sm text-gray-500">{user.age}</td>
+                          <td className="py-3 pr-3 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
+                          <td className="py-3">
+                            <span
+                              className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${
+                                user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
+                              }`}
+                            >
+                              {user.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
