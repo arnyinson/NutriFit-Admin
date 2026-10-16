@@ -13,6 +13,7 @@ type User = {
   age: number | null;
   birthday: string;
   dietary_goal: string;
+  dietary_preference?: string | null;
   weight: string;
   is_active: boolean;
   archived: boolean;
@@ -31,6 +32,7 @@ type UserDetail = {
   height: string | number | null;
   weight: string | number | null;
   dietary_goal: string | null;
+  dietary_preference?: string | null;
   activity_level: string | null;
   allergens: string[] | null;
   available_equipment: string[] | null;
@@ -71,6 +73,9 @@ const calculateAge = (birthday: string) => {
   }
   return age;
 };
+
+// Old accounts may have no value yet; show it as "None"
+const dietText = (v?: string | null) => v || 'None';
 
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -514,7 +519,7 @@ export default function Users() {
                       </div>
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {user.dietary_goal} · {user.age ?? '—'} yrs · {formatLastLogin(user.last_login)}
+                        {user.dietary_goal} · {dietText(user.dietary_preference)} · {user.age ?? '—'} yrs · {formatLastLogin(user.last_login)}
                       </p>
                     </div>
                   </div>
@@ -530,7 +535,7 @@ export default function Users() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Name', 'Email', 'Age', 'Goal', 'Last Login', 'Status', 'Action'].map((h) => (
+                  {['Name', 'Email', 'Age', 'Goal', 'Diet', 'Last Login', 'Status', 'Action'].map((h) => (
                     <th key={h} className="text-left px-3 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
@@ -540,13 +545,13 @@ export default function Users() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-12 text-center text-gray-400 text-sm">
+                    <td colSpan={8} className="px-3 py-12 text-center text-gray-400 text-sm">
                       Loading users...
                     </td>
                   </tr>
                 ) : paginatedUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-12 text-center text-gray-400 text-sm">
+                    <td colSpan={8} className="px-3 py-12 text-center text-gray-400 text-sm">
                       No users found.
                     </td>
                   </tr>
@@ -568,6 +573,7 @@ export default function Users() {
                       <td className="px-3 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={user.email}>{user.email}</td>
                       <td className="px-3 py-4 text-sm text-gray-500">{user.age ?? '—'}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.dietary_goal}</td>
+                      <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{dietText(user.dietary_preference)}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{formatLastLogin(user.last_login)}</td>
                       <td className="px-3 py-4">
                         <span
@@ -684,6 +690,7 @@ export default function Users() {
                         ['BMI', detail.user.bmi ? Number(detail.user.bmi).toFixed(1) : '—'],
                         ['TDEE', detail.user.tdee ? `${Number(detail.user.tdee)} kcal` : '—'],
                         ['Dietary Goal', detail.user.dietary_goal || '—'],
+                        ['Dietary Preference', dietText(detail.user.dietary_preference)],
                       ].map(([label, value]) => (
                         <div key={String(label)} className="bg-gray-50 rounded-xl p-3">
                           <p className="text-[11px] text-gray-400 mb-0.5">{label}</p>

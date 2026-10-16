@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Logo from '../components/Logo';
 import api from '../config/api';
 
@@ -55,7 +55,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-gray-100 flex items-center justify-center p-4">
+
+      {/* Back to the public landing page */}
+      <button
+        type="button"
+        onClick={() => navigate('/')}
+        className="absolute top-4 left-4 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-2 py-1.5 rounded-lg transition-colors"
+      >
+        <ArrowLeft size={16} />
+        Back to Landing Page
+      </button>
+
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-10 w-full max-w-sm flex flex-col items-center gap-4">
 
         {/* Logo */}
