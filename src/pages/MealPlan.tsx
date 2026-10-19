@@ -29,6 +29,7 @@ type Meal = {
   instructions: string;
   main_ingredients: Ingredient[];
   sub_ingredients: SubIngredient[];
+  diet_type?: string | null;
 };
 
 type OutsideFoodLog = {
@@ -48,6 +49,53 @@ type OutsideFoodLog = {
 
 // Same allergen list the mobile app uses (Register / Profile), so names always match.
 const ALLERGENS = ['Eggs', 'Peanuts', 'Tree Nuts', 'Dairy', 'Shellfish', 'Fish', 'Soy', 'Wheat', 'Sesame', 'Lupin'];
+
+// Specific types under each category. Same names the mobile Allergen Picker uses.
+// A specific type is saved together with its category, e.g. ["Fish", "Tilapia"].
+const SPECIFIC_ALLERGENS: Record<string, string[]> = {
+  Fish: ['Bangus', 'Tilapia', 'Tuna', 'Salmon', 'Galunggong', 'Sardines'],
+  Shellfish: ['Shrimp', 'Crab', 'Squid', 'Mussel', 'Oyster'],
+  Dairy: ['Milk', 'Cheese', 'Yogurt'],
+  'Tree Nuts': ['Cashew', 'Almond', 'Walnut', 'Pili'],
+};
+const ALL_SPECIFIC = Object.values(SPECIFIC_ALLERGENS).flat();
+
+const DIET_TYPES = ['Omnivore', 'Pescatarian', 'Vegetarian', 'Vegan'];
+
+const dietLabel = (d?: string | null) => d || 'Omnivore';
+const dietBadgeCls = (d?: string | null) =>
+  d === 'Vegan'
+    ? 'bg-green-50 text-green-600'
+    : d === 'Vegetarian'
+    ? 'bg-amber-50 text-amber-600'
+    : d === 'Pescatarian'
+    ? 'bg-blue-50 text-blue-600'
+    : 'bg-gray-100 text-gray-500';
+
+// Warning only (does not block saving): ingredient names that do not fit the chosen diet.
+const MEAT_RE = /\b(pork|baboy|liempo|chicken|manok|beef|baka|lechon|sausage|longganisa|tocino|bacon|ham|spam|corned beef|turkey|meat|lamb|goat|kambing)\b/g;
+const FISH_RE = /\b(fish|isda|tilapia|bangus|galunggong|tuna|salmon|sardines?|tuyo|dilis|shrimp|hipon|squid|pusit|crab|alimango|mussel|tahong|oyster|talaba|clam|bagoong|patis|alamang)\b/g;
+const ANIMAL_RE = /\b(egg|eggs|itlog|milk|gatas|cheese|keso|butter|yogurt|cream|honey|pulot|gelatin)\b/g;
+const PLANT_BASED_RE = /coconut (milk|cream)|gata|peanut butter|cocoa butter|almond milk|soy milk/g;
+
+const dietWarning = (diet: string, names: string[]): string | null => {
+  if (diet === 'Omnivore') return null;
+  const text = names.map((n) => n.toLowerCase().replace(PLANT_BASED_RE, ' ')).join(' | ');
+  const find = (re: RegExp) => [...new Set(text.match(re) || [])];
+  const meat = find(MEAT_RE);
+  const fish = find(FISH_RE);
+  const animal = find(ANIMAL_RE);
+  if (diet === 'Pescatarian' && meat.length) {
+    return `Pescatarian meals should not contain meat. Found: ${meat.join(', ')}.`;
+  }
+  if (diet === 'Vegetarian' && (meat.length || fish.length)) {
+    return `Vegetarian meals should not contain meat or fish. Found: ${[...meat, ...fish].join(', ')}.`;
+  }
+  if (diet === 'Vegan' && (meat.length || fish.length || animal.length)) {
+    return `Vegan meals should not contain animal products. Found: ${[...meat, ...fish, ...animal].join(', ')}.`;
+  }
+  return null;
+};
 
 // Sample suggestions shown while typing a Main Ingredient.
 const MAIN_SUGGESTIONS = [
@@ -122,9 +170,13 @@ function IngredientListEditor({
   };
   const toggleAllergen = (index: number, allergen: string) => {
     const current = rows[index].allergens;
-    updateRow(index, {
-      allergens: current.includes(allergen) ? current.filter((a) => a !== allergen) : [...current, allergen],
-    });
+    if (current.includes(allergen)) {
+      // Turning off a category also turns off its specific types
+      const specifics = SPECIFIC_ALLERGENS[allergen] || [];
+      updateRow(index, { allergens: current.filter((a) => a !== allergen && !specifics.includes(a)) });
+    } else {
+      updateRow(index, { allergens: [...current, allergen] });
+    }
   };
 
   const noneFilled = rows.every((r) => !r.name.trim());
@@ -172,7 +224,7 @@ function IngredientListEditor({
               <div>
                 <p className="text-[11px] text-gray-400 mb-1">Allergens (tap to select, leave empty if none)</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {[...ALLERGENS, ...row.allergens.filter((a) => !ALLERGENS.includes(a))].map((a) => {
+                  {[...ALLERGENS, ...row.allergens.filter((a) => !ALLERGENS.includes(a) && !ALL_SPECIFIC.includes(a))].map((a) => {
                     const active = row.allergens.includes(a);
                     return (
                       <button
@@ -190,6 +242,37 @@ function IngredientListEditor({
                     );
                   })}
                 </div>
+                {Object.keys(SPECIFIC_ALLERGENS)
+                  .filter((cat) => row.allergens.includes(cat))
+                  .map((cat) => (
+                    <div key={cat} className="mt-2 rounded-lg border border-red-100 bg-red-50/60 p-2">
+                      <p className="text-[11px] text-red-500 mb-1">Specific {cat.toLowerCase()} (optional)</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SPECIFIC_ALLERGENS[cat].map((s) => {
+                          const on = row.allergens.includes(s);
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => toggleAllergen(i, s)}
+                              className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                                on
+                                  ? 'bg-red-500 border-red-500 text-white'
+                                  : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'
+                              }`}
+                            >
+                              {s}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!SPECIFIC_ALLERGENS[cat].some((s) => row.allergens.includes(s)) && (
+                        <p className="text-[11px] text-amber-600 mt-1">
+                          Pick the specific type too, so users who avoid only that type are protected.
+                        </p>
+                      )}
+                    </div>
+                  ))}
               </div>
               {showSubstitute && (
                 <input
@@ -237,6 +320,7 @@ type MealForm = {
   name: string;
   category: string;
   meal_type: string;
+  diet_type: string;
   protein: string;
   carbs: string;
   fats: string;
@@ -244,7 +328,7 @@ type MealForm = {
 };
 
 const emptyForm: MealForm = {
-  name: '', category: 'Protein', meal_type: 'Breakfast', protein: '', carbs: '', fats: '', instructions: '',
+  name: '', category: 'Protein', meal_type: 'Breakfast', diet_type: 'Omnivore', protein: '', carbs: '', fats: '', instructions: '',
 };
 
 const formErrors = (f: MealForm, mainRows: IngredientRow[]) => ({
@@ -278,6 +362,7 @@ function MealFormFields({
 }) {
   const err = formErrors(form, mainRows);
   const totalCalories = calcCalories(form.protein, form.carbs, form.fats);
+  const dietNote = dietWarning(form.diet_type, [...mainRows, ...subRows].map((r) => r.name));
 
   return (
     <div className="flex flex-col gap-4">
@@ -319,6 +404,29 @@ function MealFormFields({
               <option>Lunch</option>
               <option>Dinner</option>
             </select>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-500 mb-1 block">Diet Type</label>
+        <select
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400"
+          value={form.diet_type}
+          onChange={(e) => setForm({ diet_type: e.target.value })}
+        >
+          {DIET_TYPES.map((d) => (
+            <option key={d}>{d}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-gray-400 mt-1">
+          Pescatarian = fish allowed, no meat. Vegetarian = no meat or fish. Vegan = no animal products.
+          Omnivore = may contain meat.
+        </p>
+        {dietNote && (
+          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <p className="text-[11px] font-semibold text-amber-700">Check the diet type</p>
+            <p className="text-[11px] text-amber-700">{dietNote}</p>
           </div>
         )}
       </div>
@@ -403,6 +511,7 @@ export default function MealPlan() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
+  const [dietFilter, setDietFilter] = useState('All Diets');
   const [page, setPage] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -430,13 +539,15 @@ export default function MealPlan() {
       if (categoryFilter !== 'All Categories') params.category = categoryFilter;
 
       const res = await api.get('/meals', { params });
-      setMeals(res.data.meals);
+      // The server does not filter by diet, so it is done here
+      const list: Meal[] = res.data.meals;
+      setMeals(dietFilter === 'All Diets' ? list : list.filter((m) => dietLabel(m.diet_type) === dietFilter));
     } catch (err) {
       console.error('Load meals error:', err);
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, dietFilter]);
 
   const loadOutsideLogs = useCallback(async () => {
     setLoadingLogs(true);
@@ -464,7 +575,7 @@ export default function MealPlan() {
   // Back to page 1 whenever the filter or search changes.
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, dietFilter]);
 
   const totalMeals = meals.length;
   const proteinMeals = meals.filter((m) => m.category === 'Protein').length;
@@ -533,6 +644,7 @@ export default function MealPlan() {
         name: newMeal.name.trim(),
         category: newMeal.category,
         meal_type: newMeal.meal_type,
+        diet_type: newMeal.diet_type,
         calories: calcCalories(newMeal.protein, newMeal.carbs, newMeal.fats),
         protein: parseFloat(newMeal.protein) || 0,
         carbs: parseFloat(newMeal.carbs) || 0,
@@ -574,6 +686,7 @@ export default function MealPlan() {
       name: meal.name,
       category: meal.category,
       meal_type: meal.meal_type,
+      diet_type: meal.diet_type || 'Omnivore',
       protein: String(meal.protein ?? ''),
       carbs: String(meal.carbs ?? ''),
       fats: String(meal.fats ?? ''),
@@ -602,6 +715,7 @@ export default function MealPlan() {
       await api.put(`/meals/${selectedMeal.id}`, {
         name: editForm.name.trim(),
         category: editForm.category,
+        diet_type: editForm.diet_type,
         calories,
         protein,
         carbs,
@@ -618,6 +732,7 @@ export default function MealPlan() {
                 ...m,
                 name: editForm.name.trim(),
                 category: editForm.category,
+                diet_type: editForm.diet_type,
                 calories,
                 protein,
                 carbs,
@@ -679,7 +794,7 @@ export default function MealPlan() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <select
                     className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
                     value={categoryFilter}
@@ -690,6 +805,16 @@ export default function MealPlan() {
                     <option>Carbs</option>
                     <option>Vegetable</option>
                     <option>Fats</option>
+                  </select>
+                  <select
+                    className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                    value={dietFilter}
+                    onChange={(e) => setDietFilter(e.target.value)}
+                  >
+                    <option>All Diets</option>
+                    {DIET_TYPES.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
                   </select>
                   <button
                     onClick={openAddModal}
@@ -743,6 +868,9 @@ export default function MealPlan() {
                       >
                         {meal.category}
                       </span>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${dietBadgeCls(meal.diet_type)}`}>
+                        {dietLabel(meal.diet_type)}
+                      </span>
                       <span>{meal.calories} kcal</span>
                       <span>P/C/F {meal.protein}/{meal.carbs}/{meal.fats}g</span>
                     </div>
@@ -763,7 +891,7 @@ export default function MealPlan() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Meal', 'Type', 'Category', 'Calories', 'Allergens', 'P/C/F', 'Actions'].map((h) => (
+                    {['Meal', 'Type', 'Diet', 'Category', 'Calories', 'Allergens', 'P/C/F', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                         {h}
                       </th>
@@ -773,11 +901,11 @@ export default function MealPlan() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">Loading meals...</td>
+                      <td colSpan={8} className="px-4 py-12 text-center text-gray-400 text-sm">Loading meals...</td>
                     </tr>
                   ) : meals.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">No meals found.</td>
+                      <td colSpan={8} className="px-4 py-12 text-center text-gray-400 text-sm">No meals found.</td>
                     </tr>
                   ) : (
                     pageMeals.map((meal) => (
@@ -791,6 +919,11 @@ export default function MealPlan() {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-gray-500">{meal.meal_type}</td>
+                        <td className="px-3 py-3">
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${dietBadgeCls(meal.diet_type)}`}>
+                            {dietLabel(meal.diet_type)}
+                          </span>
+                        </td>
                         <td className="px-3 py-3">
                           <span
                             className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${

@@ -91,6 +91,7 @@ export default function Users() {
   const [search, setSearch] = useState('');
   const [goalFilter, setGoalFilter] = useState('All Goal');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [dietFilter, setDietFilter] = useState('All Diets');
   const [page, setPage] = useState(1);
   const [counts, setCounts] = useState({ total: 0, active: 0, inactive: 0, archived: 0, banned: 0 });
   const [banTarget, setBanTarget] = useState<{ id: string; name: string } | null>(null);
@@ -129,14 +130,19 @@ export default function Users() {
         ...u,
         age: calculateAge(u.birthday),
       }));
-      setUsers(withAge);
+      // The server does not filter by diet, so it is done here
+      const byDiet =
+        dietFilter === 'All Diets'
+          ? withAge
+          : withAge.filter((u: User) => dietText(u.dietary_preference) === dietFilter);
+      setUsers(byDiet);
       setPage(1);
     } catch (err) {
       console.error('Load users error:', err);
     } finally {
       setLoading(false);
     }
-  }, [search, goalFilter, statusFilter]);
+  }, [search, goalFilter, statusFilter, dietFilter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -464,7 +470,7 @@ export default function Users() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <select
                 className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
                 value={goalFilter}
@@ -474,6 +480,17 @@ export default function Users() {
                 <option>Cutting</option>
                 <option>Bulking</option>
                 <option>Maintenance</option>
+              </select>
+              <select
+                className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
+                value={dietFilter}
+                onChange={(e) => setDietFilter(e.target.value)}
+              >
+                <option>All Diets</option>
+                <option>None</option>
+                <option>Pescatarian</option>
+                <option>Vegetarian</option>
+                <option>Vegan</option>
               </select>
               <select
                 className="flex-1 sm:flex-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 outline-none cursor-pointer"
