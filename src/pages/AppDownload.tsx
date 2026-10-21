@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Salad, Dumbbell, ShieldCheck, LineChart, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '../components/Logo';
 
-const APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1Qw1uiDX9AG16hXrWQxbEG9ldCFP8yKJw/view?usp=sharing";
+const APK_DOWNLOAD_URL = "https://drive.google.com/file/d/1HdyUZkkwbXi6RBSxfqmx574vzN0OPZ_E/view?usp=sharing";
 
 const SCREENS = [
   { src: '/dashboard.jpg', label: 'Dashboard' },
@@ -24,7 +24,7 @@ const FEATURES = [
   {
     Icon: Dumbbell,
     title: 'AI-Generated Workouts',
-    body: 'Weekly workout plans automatically built around your fitness goal and equipment.',
+    body: 'Weekly workout plans automatically built around your dietary goal and equipment.',
   },
   {
     Icon: ShieldCheck,
