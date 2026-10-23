@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
+import { ConfirmDialog, NoticeDialog } from '../components/Dialogs';
 
 type Exercise = {
   id: string;
@@ -31,6 +32,9 @@ export default function Workout() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Exercise | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; message: string; variant?: 'warning' | 'success' } | null>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [addSubmitted, setAddSubmitted] = useState(false);
   const [editSubmitted, setEditSubmitted] = useState(false);
@@ -119,21 +123,27 @@ export default function Workout() {
       refreshAllExercises();
     } catch (err) {
       console.error('Add exercise error:', err);
-      alert('Unable to add exercise. Please try again.');
+      setNotice({ title: 'Unable to add exercise', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this exercise?')) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleting(true);
     try {
       await api.delete(`/workouts/${id}`);
       setExercises((prev) => prev.filter((e) => e.id !== id));
       setAllExercises((prev) => prev.filter((e) => e.id !== id));
+      setDeleteTarget(null);
     } catch (err) {
       console.error('Delete exercise error:', err);
-      alert('Unable to delete exercise. Please try again.');
+      setDeleteTarget(null);
+      setNotice({ title: 'Unable to delete exercise', message: 'Please try again.' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -157,7 +167,7 @@ export default function Workout() {
       refreshAllExercises();
     } catch (err) {
       console.error('Update exercise error:', err);
-      alert('Unable to update exercise. Please try again.');
+      setNotice({ title: 'Unable to update exercise', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -168,7 +178,7 @@ export default function Workout() {
     if (!file || !selectedExercise) return;
 
     if (!file.type.startsWith('video/')) {
-      alert('Please select a valid video file.');
+      setNotice({ title: 'Invalid file', message: 'Please select a valid video file.' });
       return;
     }
 
@@ -185,10 +195,10 @@ export default function Workout() {
       setSelectedExercise(updatedExercise);
       setExercises((prev) => prev.map((ex) => (ex.id === selectedExercise.id ? updatedExercise : ex)));
       setAllExercises((prev) => prev.map((ex) => (ex.id === selectedExercise.id ? updatedExercise : ex)));
-      alert('Video uploaded successfully!');
+      setNotice({ title: 'Video uploaded', message: 'The exercise video was uploaded successfully.', variant: 'success' });
     } catch (err) {
       console.error('Upload video error:', err);
-      alert('Unable to upload video. Please try again.');
+      setNotice({ title: 'Unable to upload video', message: 'Please try again.' });
     } finally {
       setUploadingVideo(false);
       if (videoInputRef.current) videoInputRef.current.value = '';
@@ -289,7 +299,7 @@ export default function Workout() {
                         >
                           <Pencil size={15} />
                         </button>
-                        <button onClick={() => handleDelete(exercise.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" aria-label="Delete exercise">
+                        <button onClick={() => setDeleteTarget(exercise)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" aria-label="Delete exercise">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -356,7 +366,7 @@ export default function Workout() {
                               <Pencil size={16} />
                             </button>
                             <button
-                              onClick={() => handleDelete(exercise.id)}
+                              onClick={() => setDeleteTarget(exercise)}
                               className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
                             >
                               <Trash2 size={16} />
@@ -451,6 +461,25 @@ export default function Workout() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete exercise?"
+        message={deleteTarget ? `"${deleteTarget.name}" will be permanently removed. This can't be undone.` : ''}
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Error / success notice */}
+      <NoticeDialog
+        open={!!notice}
+        variant={notice?.variant}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        onClose={() => setNotice(null)}
+      />
 
       {/* Add Exercise Modal */}
       {showAddModal && (

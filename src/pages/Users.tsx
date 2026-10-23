@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
+import { NoticeDialog } from '../components/Dialogs';
 
 type User = {
   id: string;
@@ -100,6 +101,7 @@ export default function Users() {
   const [banSubmitted, setBanSubmitted] = useState(false);
   const [banning, setBanning] = useState(false);
 
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -204,7 +206,7 @@ export default function Users() {
       console.error('Toggle status error:', err);
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, is_active: currentStatus } : u)));
       setDetail((d) => (d && d.user.id === id ? { ...d, user: { ...d.user, is_active: currentStatus } } : d));
-      alert('Unable to update the account status. Please try again.');
+      setNotice({ title: 'Unable to update status', message: 'Please try again.' });
     }
   };
 
@@ -220,7 +222,7 @@ export default function Users() {
     } catch (err) {
       console.error('Unarchive error:', err);
       setUsers(previous);
-      alert('Unable to unarchive this account. Please try again.');
+      setNotice({ title: 'Unable to unarchive', message: 'Please try again.' });
     }
   };
 
@@ -237,7 +239,7 @@ export default function Users() {
       loadCounts();
     } catch (err) {
       console.error('Unban error:', err);
-      alert('Unable to unban this account. Please try again.');
+      setNotice({ title: 'Unable to unban', message: 'Please try again.' });
     }
   };
 
@@ -269,7 +271,7 @@ export default function Users() {
       setBanTarget(null);
     } catch (err) {
       console.error('Ban error:', err);
-      alert('Unable to ban this account. Please try again.');
+      setNotice({ title: 'Unable to ban account', message: 'Please try again.' });
     } finally {
       setBanning(false);
     }
@@ -333,6 +335,7 @@ export default function Users() {
     const bmi = Number(u.bmi);
     return [
       { label: 'Valid email format', ok: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email) },
+      { label: 'Name has no numbers', ok: !/\d/.test(u.name || '') },
       { label: 'Age within 12–75 years', ok: age !== null && age >= 12 && age <= 75 },
       { label: 'Height is realistic (100–250 cm)', ok: height >= 100 && height <= 250 },
       { label: 'Weight is realistic (30–300 kg)', ok: weight >= 30 && weight <= 300 },
@@ -916,6 +919,13 @@ export default function Users() {
           </div>
         </div>
       )}
+
+      <NoticeDialog
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        onClose={() => setNotice(null)}
+      />
 
       {/* Yes / No confirmation */}
       {pending && confirmCopy && (

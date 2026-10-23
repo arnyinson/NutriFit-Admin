@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
+import { NoticeDialog } from '../components/Dialogs';
 
 type Ticket = {
   id: string;
@@ -30,6 +31,33 @@ const PAGE_SIZE = 10;
 const RESPONSE_MAX = 500;
 const REFRESH_MS = 15000;
 
+// Professional wrapper added around the admin's reply when it is sent.
+// Edit the wording here; the admin only types the middle part.
+const RESPONSE_INTRO = 'Thank you for reaching out to NutriFit Support. We appreciate your feedback.';
+const RESPONSE_CLOSING =
+  'If you have other concerns, feel free to message us again. Thank you for helping us improve NutriFit!';
+
+const firstName = (fullName: string) => (fullName || '').trim().split(/\s+/)[0] || 'there';
+const responseHead = (fullName: string) => `Hello ${firstName(fullName)},\n${RESPONSE_INTRO}\n\n`;
+const responseTail = `\n\n${RESPONSE_CLOSING}`;
+
+// Admin text -> full message the user receives (blank stays blank).
+const buildResponse = (fullName: string, body: string) => {
+  const trimmed = body.trim();
+  if (!trimmed) return '';
+  return `${responseHead(fullName)}${trimmed}${responseTail}`;
+};
+
+// Saved message -> just the admin's own part, so editing never wraps twice.
+const extractBody = (fullName: string, saved: string | null) => {
+  if (!saved) return '';
+  const head = responseHead(fullName);
+  if (saved.startsWith(head) && saved.endsWith(responseTail) && saved.length >= head.length + responseTail.length) {
+    return saved.slice(head.length, saved.length - responseTail.length);
+  }
+  return saved;
+};
+
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -47,6 +75,7 @@ export default function Feedback() {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
   const fetchTickets = useCallback(
     async (silent = false) => {
@@ -96,7 +125,7 @@ export default function Feedback() {
 
   const handleView = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
-    setResponse(ticket.admin_response || '');
+    setResponse(extractBody(ticket.user_name, ticket.admin_response));
     setShowViewModal(true);
 
     if (ticket.status === 'New') {
@@ -114,20 +143,21 @@ export default function Feedback() {
     if (!selectedTicket) return;
     setSaving(true);
     try {
+      const fullResponse = buildResponse(selectedTicket.user_name, response);
       await api.patch(`/tickets/${selectedTicket.id}/respond`, {
-        admin_response: response,
+        admin_response: fullResponse,
         status: 'Resolved',
       });
       setTickets((prev) =>
         prev.map((t) =>
-          t.id === selectedTicket.id ? { ...t, status: 'Resolved', admin_response: response } : t
+          t.id === selectedTicket.id ? { ...t, status: 'Resolved', admin_response: fullResponse } : t
         )
       );
       setShowViewModal(false);
       loadTickets();
     } catch (err) {
       console.error('Respond to ticket error:', err);
-      alert('Unable to update ticket. Please try again.');
+      setNotice({ title: 'Unable to update ticket', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -143,7 +173,7 @@ export default function Feedback() {
       loadTickets();
     } catch (err) {
       console.error('Reopen ticket error:', err);
-      alert('Unable to reopen ticket. Please try again.');
+      setNotice({ title: 'Unable to reopen ticket', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -166,14 +196,14 @@ export default function Feedback() {
     setSaving(true);
     try {
       await api.patch(`/tickets/${selectedTicket.id}/respond`, {
-        admin_response: response,
+        admin_response: buildResponse(selectedTicket.user_name, response),
         status: selectedTicket.status === 'New' ? 'Pending' : selectedTicket.status,
       });
       setShowViewModal(false);
       loadTickets();
     } catch (err) {
       console.error('Save response error:', err);
-      alert('Unable to save response. Please try again.');
+      setNotice({ title: 'Unable to save response', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -498,6 +528,22 @@ export default function Feedback() {
                 </div>
               </div>
 
+              {/* Preview of the full message the user will receive */}
+              {response.trim() && (
+                <div className="border border-dashed border-green-300 bg-green-50 rounded-xl p-4 -mt-2">
+                  <p className="text-[11px] font-bold text-green-600 uppercase tracking-wide mb-2">
+                    What the user will receive
+                  </p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line mb-2">
+                    {`Hello ${firstName(selectedTicket.user_name)},\n${RESPONSE_INTRO}`}
+                  </p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line break-words bg-white rounded-lg px-3 py-2 border-l-4 border-green-500 mb-2">
+                    {response.trim()}
+                  </p>
+                  <p className="text-sm text-gray-700">{RESPONSE_CLOSING}</p>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
@@ -538,6 +584,13 @@ export default function Feedback() {
           </div>
         </div>
       )}
+
+      <NoticeDialog
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        onClose={() => setNotice(null)}
+      />
 
       {/* Full Image Viewer */}
       {viewingImage && (

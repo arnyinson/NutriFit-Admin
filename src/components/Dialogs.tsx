@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -73,13 +73,14 @@ export function ConfirmDialog({
 
 type NoticeDialogProps = {
   open: boolean;
+  variant?: 'warning' | 'success';
   title: string;
   message: string;
   onClose: () => void;
 };
 
 // Styled replacement for window.alert (error / info messages).
-export function NoticeDialog({ open, title, message, onClose }: NoticeDialogProps) {
+export function NoticeDialog({ open, variant = 'warning', title, message, onClose }: NoticeDialogProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -102,8 +103,16 @@ export function NoticeDialog({ open, title, message, onClose }: NoticeDialogProp
         role="alertdialog"
         aria-modal="true"
       >
-        <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle size={24} className="text-amber-500" />
+        <div
+          className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
+            variant === 'success' ? 'bg-green-50' : 'bg-amber-50'
+          }`}
+        >
+          {variant === 'success' ? (
+            <CheckCircle2 size={24} className="text-green-500" />
+          ) : (
+            <AlertTriangle size={24} className="text-amber-500" />
+          )}
         </div>
         <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
         <p className="text-sm text-gray-500 mb-6 break-words">{message}</p>
