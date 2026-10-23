@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
+import { ConfirmDialog, NoticeDialog } from '../components/Dialogs';
 
 type Ingredient = {
   name: string;
@@ -102,6 +103,13 @@ const MAIN_SUGGESTIONS = [
   'Chicken Breast', 'Chicken Thigh', 'Beef', 'Pork', 'Egg', 'Tofu', 'Tilapia', 'Salmon', 'Tuna',
   'Shrimp', 'Squid', 'Brown Rice', 'White Rice', 'Oats', 'Sweet Potato', 'Potato', 'Corn',
   'Pasta', 'Bread', 'Broccoli', 'Cabbage', 'Carrots', 'Spinach', 'Eggplant', 'Banana', 'Avocado',
+];
+
+// Sample suggestions shown while typing a Sub Ingredient (seasonings, sauces, extras).
+const SUB_SUGGESTIONS = [
+  'Soy Sauce', 'Vinegar', 'Fish Sauce', 'Oyster Sauce', 'Garlic', 'Onion', 'Ginger', 'Tomato',
+  'Salt', 'Black Pepper', 'Sugar', 'Cooking Oil', 'Olive Oil', 'Butter', 'Milk', 'Calamansi',
+  'Lemon', 'Bay Leaf', 'Green Onion', 'Chili', 'Bell Pepper', 'Mushroom', 'Peas', 'Sesame Oil',
 ];
 
 const PAGE_SIZE = 10;
@@ -483,6 +491,7 @@ function MealFormFields({
           rows={subRows}
           onChange={setSubRows}
           showSubstitute
+          suggestionsId="sub-ingredient-suggestions"
         />
       </div>
 
@@ -517,6 +526,9 @@ export default function MealPlan() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Meal | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
   const [newMeal, setNewMeal] = useState<MealForm>(emptyForm);
   const [newMainRows, setNewMainRows] = useState<IngredientRow[]>([]);
@@ -663,20 +675,26 @@ export default function MealPlan() {
       loadMeals();
     } catch (err) {
       console.error('Add meal error:', err);
-      alert('Unable to add meal. Please try again.');
+      setNotice({ title: 'Unable to add meal', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this meal?')) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleting(true);
     try {
       await api.delete(`/meals/${id}`);
       setMeals((prev) => prev.filter((m) => m.id !== id));
+      setDeleteTarget(null);
     } catch (err) {
       console.error('Delete meal error:', err);
-      alert('Unable to delete meal. Please try again.');
+      setDeleteTarget(null);
+      setNotice({ title: 'Unable to delete meal', message: 'Please try again.' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -749,7 +767,7 @@ export default function MealPlan() {
       setShowEditModal(false);
     } catch (err) {
       console.error('Update meal error:', err);
-      alert('Unable to update meal. Please try again.');
+      setNotice({ title: 'Unable to update meal', message: 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -769,6 +787,11 @@ export default function MealPlan() {
         {/* Shared suggestions for the Main Ingredient inputs */}
         <datalist id="main-ingredient-suggestions">
           {MAIN_SUGGESTIONS.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+        <datalist id="sub-ingredient-suggestions">
+          {SUB_SUGGESTIONS.map((s) => (
             <option key={s} value={s} />
           ))}
         </datalist>
@@ -849,7 +872,7 @@ export default function MealPlan() {
                         <button onClick={() => handleEdit(meal)} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg" aria-label="Edit meal">
                           <Pencil size={15} />
                         </button>
-                        <button onClick={() => handleDelete(meal.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" aria-label="Delete meal">
+                        <button onClick={() => setDeleteTarget(meal)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" aria-label="Delete meal">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -961,7 +984,7 @@ export default function MealPlan() {
                             <button onClick={() => handleEdit(meal)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors">
                               <Pencil size={14} />
                             </button>
-                            <button onClick={() => handleDelete(meal.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+                            <button onClick={() => setDeleteTarget(meal)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -1074,6 +1097,24 @@ export default function MealPlan() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete meal?"
+        message={deleteTarget ? `"${deleteTarget.name}" will be permanently removed. This can't be undone.` : ''}
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Error notice */}
+      <NoticeDialog
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        onClose={() => setNotice(null)}
+      />
 
       {/* Add Meal Modal */}
       {showAddModal && (
