@@ -6,6 +6,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 import { NoticeDialog } from '../components/Dialogs';
+import { connectAdminSocket } from '../config/socket';
 
 type Ticket = {
   id: string;
@@ -29,7 +30,6 @@ type Summary = {
 
 const PAGE_SIZE = 10;
 const RESPONSE_MAX = 500;
-const REFRESH_MS = 15000;
 
 // Professional wrapper added around the admin's reply when it is sent.
 // Edit the wording here; the admin only types the middle part.
@@ -109,12 +109,11 @@ export default function Feedback() {
     return () => clearTimeout(timeout);
   }, [loadTickets]);
 
-  // Near real-time: quietly refresh the list so new tickets appear without reloading.
+  // Real-time: the server tells us the moment a ticket is created or changed,
+  // and the list is refreshed quietly (no loading spinner, page number kept).
+  // It also refreshes after a reconnect and when the tab becomes visible again.
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchTickets(true);
-    }, REFRESH_MS);
-    return () => clearInterval(interval);
+    return connectAdminSocket(() => fetchTickets(true));
   }, [fetchTickets]);
 
   const getStatusColor = (status: string) => {
