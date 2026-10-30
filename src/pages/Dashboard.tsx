@@ -21,7 +21,23 @@ type RecentUser = {
   email: string;
   dietary_goal: string;
   is_active: boolean;
+  banned?: boolean;
+  archived?: boolean;
   age: number;
+};
+
+// Same rule as the Account Management page: Banned > Archived > Active / Inactive
+const getUserStatus = (u: RecentUser) => {
+  if (u.banned) return 'Banned';
+  if (u.archived) return 'Archived';
+  return u.is_active ? 'Active' : 'Inactive';
+};
+
+const statusStyles: Record<string, string> = {
+  Active: 'text-green-600 bg-green-50',
+  Inactive: 'text-orange-500 bg-orange-50',
+  Archived: 'text-gray-500 bg-gray-100',
+  Banned: 'text-red-600 bg-red-50',
 };
 
 const goalColors: Record<string, string> = {
@@ -230,10 +246,10 @@ export default function Dashboard() {
                           <p className="text-sm font-medium text-gray-700 truncate">{user.name}</p>
                           <span
                             className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                              user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
+                              statusStyles[getUserStatus(user)]
                             }`}
                           >
-                            {user.is_active ? 'Active' : 'Inactive'}
+                            {getUserStatus(user)}
                           </span>
                         </div>
                         <p className="text-xs text-gray-400 truncate">{user.email}</p>
@@ -274,10 +290,10 @@ export default function Dashboard() {
                           <td className="py-3">
                             <span
                               className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${
-                                user.is_active ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'
+                                statusStyles[getUserStatus(user)]
                               }`}
                             >
-                              {user.is_active ? 'Active' : 'Inactive'}
+                              {getUserStatus(user)}
                             </span>
                           </td>
                         </tr>
