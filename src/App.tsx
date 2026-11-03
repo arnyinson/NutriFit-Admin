@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import AppDownload from './pages/AppDownload';
 import Dashboard from './pages/Dashboard';
@@ -7,13 +7,16 @@ import MealPlan from './pages/MealPlan';
 import Workout from './pages/Workout';
 import Feedback from './pages/Feedback';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ADMIN_LOGIN_PATH } from './config/adminPath';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<AppDownload />} />
-        <Route path="/login" element={<Login />} />
+        {/* Hidden admin login: no button on the public site, reachable only by typing the URL */}
+        <Route path={ADMIN_LOGIN_PATH} element={<Login />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route
           path="/dashboard"
           element={
@@ -54,6 +57,8 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* Any unknown URL goes to the public page */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

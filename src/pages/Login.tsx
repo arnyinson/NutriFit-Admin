@@ -4,7 +4,7 @@ import { User, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Logo from '../components/Logo';
 import api from '../config/api';
 
-// Reads the "exp" claim of the JWT (no verification — the server still verifies it).
+// Reads the "exp" claim of the JWT (no signature check).
 // Used only to avoid showing the login form to someone whose token is still valid.
 const isTokenStillValid = (token: string | null) => {
   if (!token) return false;

@@ -5,8 +5,8 @@ type ProtectedRouteProps = {
   children: ReactNode;
 };
 
-// Reads the JWT payload (no verification). The server still verifies every request,
-// so this is only a UI guard to keep non-admin or expired tokens out of the admin pages.
+// Reads the JWT payload (no signature check). This is only a UI guard that keeps
+// non-admin or expired tokens out of the admin pages.
 const readPayload = (token: string) => {
   try {
     return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
@@ -27,7 +27,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAdminToken(token)) {
     localStorage.removeItem('adminToken');
-    return <Navigate to="/login" replace />;
+    // Send visitors to the public page, not to the secret login URL
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

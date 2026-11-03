@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Salad, Dumbbell, ShieldCheck, LineChart, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '../components/Logo';
@@ -67,8 +66,6 @@ function SideGlow({ side }: { side: 'left' | 'right' }) {
 }
 
 export default function AppDownload() {
-  const navigate = useNavigate();
-
   const marqueeScreens = [...SCREENS, ...SCREENS];
 
   useEffect(() => {
@@ -118,13 +115,6 @@ export default function AppDownload() {
               NutriFit
             </span>
           </div>
-          <button
-            onClick={() => navigate('/login')}
-            className="nf-body text-sm font-medium px-4 py-2 rounded-full border transition-colors hover:bg-white"
-            style={{ borderColor: 'var(--nf-line)', color: 'var(--nf-ink)' }}
-          >
-            Admin Login
-          </button>
         </header>
 
         {/* ============ HERO ============ */}
@@ -237,13 +227,6 @@ export default function AppDownload() {
           <p className="nf-body text-xs" style={{ color: '#8A968E' }}>
             &copy; 2026 NutriFit
           </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="nf-body text-xs font-medium underline"
-            style={{ color: '#6B7A70' }}
-          >
-            Admin Login
-          </button>
         </footer>
       </div>
     </div>
