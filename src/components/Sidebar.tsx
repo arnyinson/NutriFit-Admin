@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Utensils, Dumbbell, Ticket, LogOut, ChevronDown, Menu, X } from 'lucide-react';
 import Logo from './Logo';
 import api from '../config/api';
+import { ADMIN_LOGIN_PATH } from '../config/adminPath';
 
 const navItems = [
   { label: 'Dashboard', Icon: LayoutDashboard, path: '/dashboard' },
@@ -52,7 +53,7 @@ export default function Sidebar({ active }: { active: string }) {
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
-    navigate('/login');
+    navigate(ADMIN_LOGIN_PATH, { replace: true });
   };
 
   const handleNavClick = (path: string) => {
