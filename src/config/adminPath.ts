@@ -1,1 +1,1 @@
-export const ADMIN_LOGIN_PATH = '/ADMINGMGAPUGE';
+export const ADMIN_LOGIN_PATH = '/ADMINNGMGAPUGE';
