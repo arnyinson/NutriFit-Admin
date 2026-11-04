@@ -6,6 +6,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 import { NoticeDialog } from '../components/Dialogs';
+import { connectAdminSocket } from '../config/socket';
 
 type User = {
   id: string;
@@ -100,6 +101,7 @@ export default function Users() {
   const [banNote, setBanNote] = useState('');
   const [banSubmitted, setBanSubmitted] = useState(false);
   const [banning, setBanning] = useState(false);
+  const [banConfirm, setBanConfirm] = useState(false);
 
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -110,8 +112,9 @@ export default function Users() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
+  // silent = live refresh from the server: no loading screen, stay on the same page
+  const loadUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (search) params.search = search;
@@ -138,11 +141,11 @@ export default function Users() {
           ? withAge
           : withAge.filter((u: User) => dietText(u.dietary_preference) === dietFilter);
       setUsers(byDiet);
-      setPage(1);
+      if (!silent) setPage(1);
     } catch (err) {
       console.error('Load users error:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [search, goalFilter, statusFilter, dietFilter]);
 
@@ -173,6 +176,14 @@ export default function Users() {
   useEffect(() => {
     loadCounts();
   }, [loadCounts]);
+
+  // Live updates: new registrations, bans, status changes, etc. appear without a refresh
+  useEffect(() => {
+    return connectAdminSocket(() => {
+      loadUsers(true);
+      loadCounts();
+    }, ['data:changed']);
+  }, [loadUsers, loadCounts]);
 
   // Open the detail modal and fetch the full profile.
   const openDetail = async (id: string) => {
@@ -250,10 +261,17 @@ export default function Users() {
     setBanSubmitted(false);
   };
 
-  const submitBan = async () => {
+  // Step 1: validate the form, then ask for a final Yes / No
+  const submitBan = () => {
     if (!banTarget) return;
     setBanSubmitted(true);
     if (!banReason || (banReason === 'Other' && !banNote.trim())) return;
+    setBanConfirm(true);
+  };
+
+  // Step 2: the admin confirmed, so the ban is really sent
+  const performBan = async () => {
+    if (!banTarget) return;
     setBanning(true);
     try {
       const res = await api.patch(`/users/${banTarget.id}/ban`, { reason: banReason, note: banNote.trim() });
@@ -274,6 +292,7 @@ export default function Users() {
       setNotice({ title: 'Unable to ban account', message: 'Please try again.' });
     } finally {
       setBanning(false);
+      setBanConfirm(false);
     }
   };
 
@@ -329,18 +348,14 @@ export default function Users() {
 
   // Simple "is this a real, sensible account?" checks the admin can read at a glance.
   const integrityChecks = (u: UserDetail) => {
-    const age = calculateAge(u.birthday);
     const height = Number(u.height);
     const weight = Number(u.weight);
     const bmi = Number(u.bmi);
     return [
       { label: 'Valid email format', ok: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email) },
-      { label: 'Name has no numbers', ok: !/\d/.test(u.name || '') },
-      { label: 'Age within 12–75 years', ok: age !== null && age >= 12 && age <= 75 },
       { label: 'Height is realistic (100–250 cm)', ok: height >= 100 && height <= 250 },
       { label: 'Weight is realistic (30–300 kg)', ok: weight >= 30 && weight <= 300 },
       { label: 'BMI is realistic (10–60)', ok: bmi >= 10 && bmi <= 60 },
-      { label: 'Has logged in since registering', ok: !!u.last_login },
     ];
   };
 
@@ -348,7 +363,7 @@ export default function Users() {
     ? pending.type === 'deactivate'
       ? {
           title: 'Deactivate this account?',
-          body: `${pending.user.name} will no longer be able to log in until the account is activated again.`,
+          body: `${pending.user.name} will no longer be able to log in until the account is activated again. The user will be notified by push notification and email.`,
           yes: 'Yes, deactivate',
           danger: true,
         }
@@ -926,6 +941,41 @@ export default function Users() {
         message={notice?.message || ''}
         onClose={() => setNotice(null)}
       />
+
+      {/* Final Yes / No before a ban is sent */}
+      {banConfirm && banTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] px-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-[400px] shadow-xl">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4">
+              <AlertTriangle size={22} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Ban this account?</h3>
+            <p className="text-sm text-gray-500 mb-3">
+              {banTarget.name} will be banned immediately and will not be able to log in until you unban the account. The user will be notified by push notification and email.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              <span className="font-semibold text-gray-700">Reason: </span>
+              {banReason === 'Other' ? banNote : banNote ? `${banReason} - ${banNote}` : banReason}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBanConfirm(false)}
+                disabled={banning}
+                className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
+              >
+                No
+              </button>
+              <button
+                onClick={performBan}
+                disabled={banning}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+              >
+                {banning ? 'Banning...' : 'Yes, ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Yes / No confirmation */}
       {pending && confirmCopy && (

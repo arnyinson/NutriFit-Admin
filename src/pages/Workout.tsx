@@ -6,6 +6,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 import { ConfirmDialog, NoticeDialog } from '../components/Dialogs';
+import { connectAdminSocket } from '../config/socket';
 
 type Exercise = {
   id: string;
@@ -44,8 +45,9 @@ export default function Workout() {
     difficulty: 'Beginner' as Exercise['difficulty'], instructions: '',
   });
 
-  const loadExercises = useCallback(async () => {
-    setLoading(true);
+  // silent = live refresh from the server: no loading screen
+  const loadExercises = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (search) params.search = search;
@@ -57,7 +59,7 @@ export default function Workout() {
     } catch (err) {
       console.error('Load exercises error:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [search, muscleFilter, equipmentFilter]);
 
@@ -81,14 +83,22 @@ export default function Workout() {
     loadAll();
   }, []);
 
-  const refreshAllExercises = async () => {
+  const refreshAllExercises = useCallback(async () => {
     try {
       const res = await api.get('/workouts');
       setAllExercises(res.data.exercises);
     } catch (err) {
       console.error('Refresh all exercises error:', err);
     }
-  };
+  }, []);
+
+  // Live updates: exercises added / edited / deleted appear without a refresh
+  useEffect(() => {
+    return connectAdminSocket(() => {
+      loadExercises(true);
+      refreshAllExercises();
+    }, ['data:changed']);
+  }, [loadExercises, refreshAllExercises]);
 
   const countBy = (key: 'muscle_group' | 'equipment' | 'difficulty') => {
     const counts = allExercises.reduce((acc: Record<string, number>, e) => {

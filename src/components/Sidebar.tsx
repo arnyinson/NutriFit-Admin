@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Utensils, Dumbbell, Ticket, LogOut, ChevronDown
 import Logo from './Logo';
 import api from '../config/api';
 import { ADMIN_LOGIN_PATH } from '../config/adminPath';
+import { connectAdminSocket } from '../config/socket';
 
 const navItems = [
   { label: 'Dashboard', Icon: LayoutDashboard, path: '/dashboard' },
@@ -21,7 +22,7 @@ export default function Sidebar({ active }: { active: string }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [newTickets, setNewTickets] = useState(0);
 
-  // Badge on "Ticketing Support": number of NEW tickets, refreshed every 15s.
+  // Badge on "Ticketing Support": number of NEW tickets, updated live by the server.
   // It drops automatically once the admin opens a ticket (New -> Pending) or resolves it.
   useEffect(() => {
     let cancelled = false;
@@ -34,10 +35,10 @@ export default function Sidebar({ active }: { active: string }) {
       }
     };
     loadCount();
-    const interval = setInterval(loadCount, 15000);
+    const stop = connectAdminSocket(loadCount, ['tickets:changed']);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stop();
     };
   }, []);
 

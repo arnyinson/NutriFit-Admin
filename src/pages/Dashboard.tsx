@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Utensils, Dumbbell, AlertTriangle, ArrowRight, TrendingUp } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
+import { connectAdminSocket } from '../config/socket';
 
 type DashboardStats = {
   totalUsers: string;
@@ -54,8 +55,9 @@ export default function Dashboard() {
   const [goalDistribution, setGoalDistribution] = useState<GoalDistributionItem[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
 
-  const loadDashboard = async () => {
-    setLoading(true);
+  // silent = live refresh from the server: no loading screen
+  const loadDashboard = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(false);
     try {
       const res = await api.get('/users/admin/dashboard-stats');
@@ -66,12 +68,14 @@ export default function Dashboard() {
       console.error('Load dashboard error:', err);
       setError(true);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadDashboard();
+    // Live updates: counts, goal chart and recent users refresh without a page reload
+    return connectAdminSocket(() => loadDashboard(true), ['data:changed']);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -138,7 +142,7 @@ export default function Dashboard() {
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-red-50 border border-red-100 text-red-600 rounded-2xl px-5 py-4">
             <p className="text-sm">Unable to load the dashboard data. The server may be waking up.</p>
             <button
-              onClick={loadDashboard}
+              onClick={() => loadDashboard()}
               className="self-start sm:self-auto bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               Try again

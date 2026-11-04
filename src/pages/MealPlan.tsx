@@ -6,6 +6,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 import { ConfirmDialog, NoticeDialog } from '../components/Dialogs';
+import { connectAdminSocket } from '../config/socket';
 
 type Ingredient = {
   name: string;
@@ -543,8 +544,9 @@ export default function MealPlan() {
   const [outsideLogs, setOutsideLogs] = useState<OutsideFoodLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
 
-  const loadMeals = useCallback(async () => {
-    setLoading(true);
+  // silent = live refresh from the server: no loading screen
+  const loadMeals = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (search) params.search = search;
@@ -557,19 +559,19 @@ export default function MealPlan() {
     } catch (err) {
       console.error('Load meals error:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [search, categoryFilter, dietFilter]);
 
-  const loadOutsideLogs = useCallback(async () => {
-    setLoadingLogs(true);
+  const loadOutsideLogs = useCallback(async (silent = false) => {
+    if (!silent) setLoadingLogs(true);
     try {
       const res = await api.get('/meals/log/all', { params: { limit: 20 } });
       setOutsideLogs(res.data.foodLogs);
     } catch (err) {
       console.error('Load outside food logs error:', err);
     } finally {
-      setLoadingLogs(false);
+      if (!silent) setLoadingLogs(false);
     }
   }, []);
 
@@ -583,6 +585,14 @@ export default function MealPlan() {
   useEffect(() => {
     loadOutsideLogs();
   }, [loadOutsideLogs]);
+
+  // Live updates: meals added / edited / deleted and new outside food logs show up without a refresh
+  useEffect(() => {
+    return connectAdminSocket(() => {
+      loadMeals(true);
+      loadOutsideLogs(true);
+    }, ['data:changed']);
+  }, [loadMeals, loadOutsideLogs]);
 
   // Back to page 1 whenever the filter or search changes.
   useEffect(() => {
