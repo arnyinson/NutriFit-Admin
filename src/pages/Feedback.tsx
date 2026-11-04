@@ -58,6 +58,14 @@ const extractBody = (fullName: string, saved: string | null) => {
   return saved;
 };
 
+const APPEAL_TYPE = 'Ban Appeal';
+
+const AppealBadge = () => (
+  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
+    Ban Appeal
+  </span>
+);
+
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -313,6 +321,9 @@ export default function Feedback() {
                       {ticket.status}
                     </span>
                   </div>
+                  {ticket.type === APPEAL_TYPE && (
+                    <div className="mt-2"><AppealBadge /></div>
+                  )}
                   <p className="text-sm text-gray-500 mt-2 line-clamp-2 break-words">{ticket.message}</p>
                   <div className="flex items-center justify-between gap-3 mt-3">
                     <div className="flex items-center gap-3 min-w-0">
@@ -374,7 +385,12 @@ export default function Feedback() {
                           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{ticket.user_name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-500 max-w-[220px] truncate">{ticket.message}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 max-w-[220px]">
+                        {ticket.type === APPEAL_TYPE && (
+                          <div className="mb-1"><AppealBadge /></div>
+                        )}
+                        <p className="truncate">{ticket.message}</p>
+                      </td>
                       <td className="px-4 py-4">
                         {ticket.image_url ? (
                           <button
@@ -482,6 +498,16 @@ export default function Feedback() {
                 <p className="text-sm font-semibold text-gray-700">{formatDateTime(selectedTicket.created_at)}</p>
               </div>
 
+              {selectedTicket.type === APPEAL_TYPE && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                  <p className="text-xs font-bold text-red-500 mb-1">Ban appeal</p>
+                  <p className="text-xs text-red-400 leading-relaxed">
+                    This user is banned and cannot open the app. Your reply is sent to their email
+                    ({selectedTicket.user_email}). To give the account back, unban it on the Users page.
+                  </p>
+                </div>
+              )}
+
               {/* Type */}
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">Type</p>
@@ -531,7 +557,7 @@ export default function Feedback() {
               {response.trim() && (
                 <div className="border border-dashed border-green-300 bg-green-50 rounded-xl p-4 -mt-2">
                   <p className="text-[11px] font-bold text-green-600 uppercase tracking-wide mb-2">
-                    What the user will receive
+                    {selectedTicket.type === APPEAL_TYPE ? 'What the user will receive by email' : 'What the user will receive'}
                   </p>
                   <p className="text-sm text-gray-700 whitespace-pre-line mb-2">
                     {`Hello ${firstName(selectedTicket.user_name)},\n${RESPONSE_INTRO}`}
