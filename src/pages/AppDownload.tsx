@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Salad, Dumbbell, ShieldCheck, LineChart, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '../components/Logo';
 
-const APK_DOWNLOAD_URL = 'https://drive.google.com/file/d/1Ms0vYi668AbGDtxSF32YKMCTsCisCJw4/view?usp=sharing';
+const APK_DOWNLOAD_URL = 'https://drive.google.com/file/d/1vk3dFNH6aWOQKYCs6r1xLiZfwM7WhNGa/view?usp=sharing';
 
 const SCREENS = [
   { src: '/dashboard.jpg', label: 'Dashboard' },
