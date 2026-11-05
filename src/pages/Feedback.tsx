@@ -19,6 +19,7 @@ type Ticket = {
   admin_response: string | null;
   responded_at?: string | null;
   image_url: string | null;
+  appeal_decision?: 'approved' | 'denied' | null;
 };
 
 type Summary = {
@@ -58,11 +59,11 @@ const extractBody = (fullName: string, saved: string | null) => {
   return saved;
 };
 
-const APPEAL_TYPE = 'Ban Appeal';
+const isAppeal = (type: string) => type === 'Ban Appeal' || type === 'Deactivation Appeal';
 
-const AppealBadge = () => (
+const AppealBadge = ({ type }: { type: string }) => (
   <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
-    Ban Appeal
+    {type}
   </span>
 );
 
@@ -165,6 +166,35 @@ export default function Feedback() {
     } catch (err) {
       console.error('Respond to ticket error:', err);
       setNotice({ title: 'Unable to update ticket', message: 'Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Appeal tickets: Approve (gives the account back) or Deny (final). The user
+  // gets an email with the result and the admin's message.
+  const handleAppealDecision = async (decision: 'approve' | 'deny') => {
+    if (!selectedTicket) return;
+    const note = response.trim();
+    if (decision === 'deny' && !note) {
+      setNotice({ title: 'Reason needed', message: 'Please write why the appeal is not approved. The user will receive it by email.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.patch(`/tickets/${selectedTicket.id}/respond`, {
+        admin_response: note,
+        status: 'Resolved',
+        appeal_decision: decision,
+      });
+      setShowViewModal(false);
+      loadTickets();
+    } catch (err: any) {
+      console.error('Appeal decision error:', err);
+      setNotice({
+        title: 'Unable to save decision',
+        message: err?.response?.data?.error || 'Please try again.',
+      });
     } finally {
       setSaving(false);
     }
@@ -321,8 +351,8 @@ export default function Feedback() {
                       {ticket.status}
                     </span>
                   </div>
-                  {ticket.type === APPEAL_TYPE && (
-                    <div className="mt-2"><AppealBadge /></div>
+                  {isAppeal(ticket.type) && (
+                    <div className="mt-2"><AppealBadge type={ticket.type} /></div>
                   )}
                   <p className="text-sm text-gray-500 mt-2 line-clamp-2 break-words">{ticket.message}</p>
                   <div className="flex items-center justify-between gap-3 mt-3">
@@ -386,8 +416,8 @@ export default function Feedback() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-500 max-w-[220px]">
-                        {ticket.type === APPEAL_TYPE && (
-                          <div className="mb-1"><AppealBadge /></div>
+                        {isAppeal(ticket.type) && (
+                          <div className="mb-1"><AppealBadge type={ticket.type} /></div>
                         )}
                         <p className="truncate">{ticket.message}</p>
                       </td>
@@ -498,12 +528,13 @@ export default function Feedback() {
                 <p className="text-sm font-semibold text-gray-700">{formatDateTime(selectedTicket.created_at)}</p>
               </div>
 
-              {selectedTicket.type === APPEAL_TYPE && (
+              {isAppeal(selectedTicket.type) && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-4">
-                  <p className="text-xs font-bold text-red-500 mb-1">Ban appeal</p>
+                  <p className="text-xs font-bold text-red-500 mb-1">{selectedTicket.type === 'Ban Appeal' ? 'Ban appeal' : 'Deactivation appeal'}</p>
                   <p className="text-xs text-red-400 leading-relaxed">
-                    This user is banned and cannot open the app. Your reply is sent to their email
-                    ({selectedTicket.user_email}). To give the account back, unban it on the Users page.
+                    This user cannot open the app. <b>Approve</b> gives the account back (
+                    {selectedTicket.type === 'Ban Appeal' ? 'unban' : 'activate'}). <b>Deny</b> is final.
+                    Either way the result and your message are sent to their email ({selectedTicket.user_email}).
                   </p>
                 </div>
               )}
@@ -535,6 +566,69 @@ export default function Feedback() {
                 </div>
               )}
 
+              {isAppeal(selectedTicket.type) ? (
+                <>
+                  {selectedTicket.appeal_decision || selectedTicket.status === 'Resolved' ? (
+                    <div
+                      className={`rounded-xl p-4 border ${
+                        selectedTicket.appeal_decision === 'approved'
+                          ? 'bg-green-50 border-green-100'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <p className="text-xs text-gray-400 mb-1">Decision</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line break-words">
+                        {selectedTicket.admin_response || 'Resolved'}
+                      </p>
+                      {selectedTicket.responded_at && (
+                        <p className="text-[11px] text-gray-400 mt-2">{formatDateTime(selectedTicket.responded_at)}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 mb-1 block">
+                        Message to the user (required if you deny)
+                      </label>
+                      <textarea
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-24 resize-none"
+                        placeholder="Example: Thanks for explaining. Your account is restored, but please keep to one account."
+                        maxLength={RESPONSE_MAX}
+                        value={response}
+                        onChange={(e) => setResponse(e.target.value)}
+                      />
+                      <p className="text-[11px] text-gray-400 text-right mt-1">{response.length}/{RESPONSE_MAX}</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => setShowViewModal(false)}
+                      className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50"
+                    >
+                      Close
+                    </button>
+                    {!selectedTicket.appeal_decision && selectedTicket.status !== 'Resolved' && (
+                      <>
+                        <button
+                          onClick={() => handleAppealDecision('deny')}
+                          disabled={saving}
+                          className="flex-1 border border-red-200 text-red-500 hover:bg-red-50 py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                        >
+                          {saving ? 'Saving...' : 'Deny appeal'}
+                        </button>
+                        <button
+                          onClick={() => handleAppealDecision('approve')}
+                          disabled={saving}
+                          className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                        >
+                          {saving ? 'Saving...' : 'Approve & restore'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+              <>
               {/* Response */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Admin Response</label>
@@ -557,7 +651,7 @@ export default function Feedback() {
               {response.trim() && (
                 <div className="border border-dashed border-green-300 bg-green-50 rounded-xl p-4 -mt-2">
                   <p className="text-[11px] font-bold text-green-600 uppercase tracking-wide mb-2">
-                    {selectedTicket.type === APPEAL_TYPE ? 'What the user will receive by email' : 'What the user will receive'}
+                    What the user will receive
                   </p>
                   <p className="text-sm text-gray-700 whitespace-pre-line mb-2">
                     {`Hello ${firstName(selectedTicket.user_name)},\n${RESPONSE_INTRO}`}
@@ -605,6 +699,8 @@ export default function Feedback() {
                   </>
                 )}
               </div>
+              </>
+              )}
             </div>
           </div>
         </div>
