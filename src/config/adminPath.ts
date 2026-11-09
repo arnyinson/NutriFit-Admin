@@ -1,1 +1,1 @@
-export const ADMIN_LOGIN_PATH = '/ADMINNGMGAPUGE';
+export const ADMIN_LOGIN_PATH = '/nutrifit-control-room';

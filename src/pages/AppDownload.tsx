@@ -12,6 +12,7 @@ const SCREENS = [
   { src: '/achievements.jpg', label: 'Achievements' },
   { src: '/profile.jpg', label: 'Profile' },
   { src: '/calendar.jpg', label: 'Calendar' },
+  { src: '/feedback.jpg', label: 'Feedback' },
 ];
 
 const FEATURES = [
