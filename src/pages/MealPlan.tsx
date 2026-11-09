@@ -397,7 +397,6 @@ function MealFormFields({
           >
             <option>Protein</option>
             <option>Carbs</option>
-            <option>Vegetable</option>
             <option>Fats</option>
           </select>
         </div>
@@ -836,7 +835,6 @@ export default function MealPlan() {
                     <option>All Categories</option>
                     <option>Protein</option>
                     <option>Carbs</option>
-                    <option>Vegetable</option>
                     <option>Fats</option>
                   </select>
                   <select
