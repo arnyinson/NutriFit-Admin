@@ -587,7 +587,7 @@ export default function Feedback() {
                   ) : (
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                        Message to the user (required if you deny)
+                        Message to the user, required if you deny
                       </label>
                       <textarea
                         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-400 min-h-24 resize-none"
