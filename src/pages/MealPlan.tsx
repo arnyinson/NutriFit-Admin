@@ -114,6 +114,7 @@ const SUB_SUGGESTIONS = [
 ];
 
 const PAGE_SIZE = 10;
+const LOG_PAGE_SIZE = 5;
 const NAME_MAX = 50;
 const ING_MAX = 25;
 const INSTR_MAX = 1500;
@@ -542,6 +543,7 @@ export default function MealPlan() {
 
   const [outsideLogs, setOutsideLogs] = useState<OutsideFoodLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [logPage, setLogPage] = useState(1);
 
   // silent = live refresh from the server: no loading screen
   const loadMeals = useCallback(async (silent = false) => {
@@ -565,7 +567,7 @@ export default function MealPlan() {
   const loadOutsideLogs = useCallback(async (silent = false) => {
     if (!silent) setLoadingLogs(true);
     try {
-      const res = await api.get('/meals/log/all', { params: { limit: 20 } });
+      const res = await api.get('/meals/log/all', { params: { limit: 50 } });
       setOutsideLogs(res.data.foodLogs);
     } catch (err) {
       console.error('Load outside food logs error:', err);
@@ -625,6 +627,12 @@ export default function MealPlan() {
     pages.push(totalPages);
     return pages;
   };
+
+  // Outside Food Logs pagination (same style as the meal table)
+  const totalLogPages = Math.max(1, Math.ceil(outsideLogs.length / LOG_PAGE_SIZE));
+  const currentLogPage = Math.min(logPage, totalLogPages);
+  const logStart = (currentLogPage - 1) * LOG_PAGE_SIZE;
+  const pageLogs = outsideLogs.slice(logStart, logStart + LOG_PAGE_SIZE);
 
   const formatLogTime = (isoDate: string) => {
     const date = new Date(isoDate);
@@ -1082,7 +1090,7 @@ export default function MealPlan() {
                   ) : outsideLogs.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-8">No outside food logs yet.</p>
                   ) : (
-                    outsideLogs.map((log) => (
+                    pageLogs.map((log) => (
                       <div key={log.id} className="px-5 py-3 border-b border-gray-50 last:border-b-0">
                         <div className="flex justify-between items-start gap-2">
                           <p className="text-sm font-medium text-gray-700 leading-tight">{log.food_name}</p>
@@ -1099,6 +1107,36 @@ export default function MealPlan() {
                   )}
                 </div>
               </div>
+
+              {/* Pagination */}
+              {!loadingLogs && outsideLogs.length > 0 && (
+                <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-gray-100">
+                  <p className="text-[11px] text-gray-400">
+                    {logStart + 1}–{Math.min(logStart + LOG_PAGE_SIZE, outsideLogs.length)} of {outsideLogs.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setLogPage(currentLogPage - 1)}
+                      disabled={currentLogPage === 1}
+                      className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+                      aria-label="Previous logs page"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-xs font-medium text-gray-600 px-1">
+                      {currentLogPage} / {totalLogPages}
+                    </span>
+                    <button
+                      onClick={() => setLogPage(currentLogPage + 1)}
+                      disabled={currentLogPage === totalLogPages}
+                      className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+                      aria-label="Next logs page"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
