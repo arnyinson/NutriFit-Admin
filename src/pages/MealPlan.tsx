@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Search, Plus, Pencil, Trash2, X, Utensils, ClipboardList, ShieldCheck, AlertTriangle,
+  Search, Plus, Pencil, Trash2, X, Utensils, ShieldCheck, AlertTriangle,
   ListPlus, PlusCircle, MinusCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -599,13 +599,11 @@ export default function MealPlan() {
   }, [search, categoryFilter, dietFilter]);
 
   const totalMeals = meals.length;
-  const proteinMeals = meals.filter((m) => m.category === 'Protein').length;
   const withAllergens = meals.filter((m) => m.allergens && m.allergens.length > 0).length;
   const allergenFreeMeals = totalMeals - withAllergens;
 
   const stats = [
     { label: 'Total Meals', value: String(totalMeals), Icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { label: 'Protein-Based Meals', value: String(proteinMeals), Icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
     { label: 'With Allergens', value: String(withAllergens), Icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
     { label: 'Allergen-Free Meals', value: String(allergenFreeMeals), Icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-50' },
   ];
@@ -1050,7 +1048,7 @@ export default function MealPlan() {
           {/* Right column: Stats + Outside Food Logs. The logs panel fills the remaining height
               so it lines up with the bottom of the meal table. */}
           <div className="w-full xl:w-72 flex flex-col gap-4 flex-shrink-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-1 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-1 gap-4">
               {stats.map((stat, i) => (
                 <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                   <div className="flex items-center gap-3">

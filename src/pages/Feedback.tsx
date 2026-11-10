@@ -385,7 +385,7 @@ export default function Feedback() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Ticket ID', 'User', 'Message', 'Image', 'Date', 'Status', 'Action'].map((h) => (
+                  {['Ticket ID', 'User', 'Message', 'Image', 'Date/Time', 'Status', 'Action'].map((h) => (
                     <th key={h} className="text-left px-4 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>

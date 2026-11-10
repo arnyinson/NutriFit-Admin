@@ -76,8 +76,11 @@ const calculateAge = (birthday: string) => {
   return age;
 };
 
-// Old accounts may have no value yet; show it as "None"
-const dietText = (v?: string | null) => v || 'None';
+// Same name the mobile app uses: "No preference". Old accounts may have no value,
+// "None" or "no preference" (any letter case) saved, so all of them show as "No preference".
+// The filter uses this same function, so the display and the filter always match.
+const dietText = (v?: string | null) =>
+  !v || ['none', 'no preference', 'null', ''].includes(v.trim().toLowerCase()) ? 'No preference' : v;
 
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -505,7 +508,7 @@ export default function Users() {
                 onChange={(e) => setDietFilter(e.target.value)}
               >
                 <option>All Diets</option>
-                <option>None</option>
+                <option>No preference</option>
                 <option>Pescatarian</option>
                 <option>Vegetarian</option>
                 <option>Vegan</option>
