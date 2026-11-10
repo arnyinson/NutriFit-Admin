@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Pencil, Trash2, X, Utensils, ShieldCheck, AlertTriangle,
   ListPlus, PlusCircle, MinusCircle, ChevronLeft, ChevronRight,
@@ -114,7 +114,7 @@ const SUB_SUGGESTIONS = [
 ];
 
 const PAGE_SIZE = 10;
-const LOG_PAGE_SIZE = 5;
+const LOG_ROW_MIN_HEIGHT = 76; // px; rows per page = list height / this
 const NAME_MAX = 50;
 const ING_MAX = 25;
 const INSTR_MAX = 1500;
@@ -544,6 +544,10 @@ export default function MealPlan() {
   const [outsideLogs, setOutsideLogs] = useState<OutsideFoodLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [logPage, setLogPage] = useState(1);
+  // The logs list fills the space next to the meal table. Its height is measured so the
+  // number of rows per page fits exactly (no empty gap above the pagination bar).
+  const logAreaRef = useRef<HTMLDivElement>(null);
+  const [logAreaH, setLogAreaH] = useState(0);
 
   // silent = live refresh from the server: no loading screen
   const loadMeals = useCallback(async (silent = false) => {
@@ -587,6 +591,16 @@ export default function MealPlan() {
     loadOutsideLogs();
   }, [loadOutsideLogs]);
 
+  useEffect(() => {
+    const el = logAreaRef.current;
+    if (!el) return;
+    const update = () => setLogAreaH(el.clientHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Live updates: meals added / edited / deleted and new outside food logs show up without a refresh
   useEffect(() => {
     return connectAdminSocket(() => {
@@ -629,10 +643,12 @@ export default function MealPlan() {
   };
 
   // Outside Food Logs pagination (same style as the meal table)
-  const totalLogPages = Math.max(1, Math.ceil(outsideLogs.length / LOG_PAGE_SIZE));
+  const logPageSize = logAreaH > 0 ? Math.max(3, Math.floor(logAreaH / LOG_ROW_MIN_HEIGHT)) : 5;
+  const logRowHeight = logAreaH > 0 ? logAreaH / logPageSize : undefined;
+  const totalLogPages = Math.max(1, Math.ceil(outsideLogs.length / logPageSize));
   const currentLogPage = Math.min(logPage, totalLogPages);
-  const logStart = (currentLogPage - 1) * LOG_PAGE_SIZE;
-  const pageLogs = outsideLogs.slice(logStart, logStart + LOG_PAGE_SIZE);
+  const logStart = (currentLogPage - 1) * logPageSize;
+  const pageLogs = outsideLogs.slice(logStart, logStart + logPageSize);
 
   const formatLogTime = (isoDate: string) => {
     const date = new Date(isoDate);
@@ -1083,7 +1099,7 @@ export default function MealPlan() {
                   <p className="text-[11px] text-gray-400">User-logged meals outside the system</p>
                 </div>
               </div>
-              <div className="relative flex-1 min-h-[240px]">
+              <div ref={logAreaRef} className="relative flex-1 min-h-[240px]">
                 <div className="absolute inset-0 overflow-y-auto">
                   {loadingLogs ? (
                     <p className="text-xs text-gray-400 text-center py-8">Loading logs...</p>
@@ -1091,7 +1107,11 @@ export default function MealPlan() {
                     <p className="text-xs text-gray-400 text-center py-8">No outside food logs yet.</p>
                   ) : (
                     pageLogs.map((log) => (
-                      <div key={log.id} className="px-5 py-3 border-b border-gray-50 last:border-b-0">
+                      <div
+                        key={log.id}
+                        style={logRowHeight ? { height: logRowHeight } : undefined}
+                        className="px-5 py-3 border-b border-gray-50 last:border-b-0 flex flex-col justify-center overflow-hidden"
+                      >
                         <div className="flex justify-between items-start gap-2">
                           <p className="text-sm font-medium text-gray-700 leading-tight">{log.food_name}</p>
                           <span className="text-xs font-semibold text-purple-500 whitespace-nowrap">{log.calories} kcal</span>
@@ -1112,7 +1132,7 @@ export default function MealPlan() {
               {!loadingLogs && outsideLogs.length > 0 && (
                 <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-gray-100">
                   <p className="text-[11px] text-gray-400">
-                    {logStart + 1}–{Math.min(logStart + LOG_PAGE_SIZE, outsideLogs.length)} of {outsideLogs.length}
+                    {logStart + 1}–{Math.min(logStart + logPageSize, outsideLogs.length)} of {outsideLogs.length}
                   </p>
                   <div className="flex items-center gap-1">
                     <button
