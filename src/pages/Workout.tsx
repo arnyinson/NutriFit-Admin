@@ -6,7 +6,6 @@ import {
 import Sidebar from '../components/Sidebar';
 import api from '../config/api';
 import { ConfirmDialog, NoticeDialog } from '../components/Dialogs';
-import { connectAdminSocket } from '../config/socket';
 
 type Exercise = {
   id: string;
@@ -45,9 +44,8 @@ export default function Workout() {
     difficulty: 'Beginner' as Exercise['difficulty'], instructions: '',
   });
 
-  // silent = live refresh from the server: no loading screen
-  const loadExercises = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+  const loadExercises = useCallback(async () => {
+    setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (search) params.search = search;
@@ -59,7 +57,7 @@ export default function Workout() {
     } catch (err) {
       console.error('Load exercises error:', err);
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [search, muscleFilter, equipmentFilter]);
 
@@ -83,22 +81,14 @@ export default function Workout() {
     loadAll();
   }, []);
 
-  const refreshAllExercises = useCallback(async () => {
+  const refreshAllExercises = async () => {
     try {
       const res = await api.get('/workouts');
       setAllExercises(res.data.exercises);
     } catch (err) {
       console.error('Refresh all exercises error:', err);
     }
-  }, []);
-
-  // Live updates: exercises added / edited / deleted appear without a refresh
-  useEffect(() => {
-    return connectAdminSocket(() => {
-      loadExercises(true);
-      refreshAllExercises();
-    }, ['data:changed']);
-  }, [loadExercises, refreshAllExercises]);
+  };
 
   const countBy = (key: 'muscle_group' | 'equipment' | 'difficulty') => {
     const counts = allExercises.reduce((acc: Record<string, number>, e) => {
@@ -271,7 +261,8 @@ export default function Workout() {
                     <option>Dumbbell</option>
                     <option>Bodyweight</option>
                     <option>Machine</option>
-                    <option>Bench</option>
+                    <option>Kettlebell</option>
+                    <option>Resistance Bands</option>
                   </select>
                 </div>
                 <button
@@ -544,7 +535,8 @@ export default function Workout() {
                     <option>Dumbbell</option>
                     <option>Bodyweight</option>
                     <option>Machine</option>
-                    <option>Bench</option>
+                    <option>Kettlebell</option>
+                    <option>Resistance Bands</option>
                   </select>
                 </div>
               </div>
@@ -649,7 +641,8 @@ export default function Workout() {
                     <option>Dumbbell</option>
                     <option>Bodyweight</option>
                     <option>Machine</option>
-                    <option>Bench</option>
+                    <option>Kettlebell</option>
+                    <option>Resistance Bands</option>
                   </select>
                 </div>
               </div>

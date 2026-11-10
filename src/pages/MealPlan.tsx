@@ -216,7 +216,7 @@ function IngredientListEditor({
               <div className="flex items-center gap-2">
                 <input
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-green-400"
-                  placeholder="Ingredient name (e.g. soy sauce)"
+                  placeholder={showSubstitute ? 'Ingredient name (e.g. soy sauce)' : 'Ingredient name (e.g. chicken breast)'}
                   maxLength={ING_MAX}
                   list={suggestionsId}
                   value={row.name}
