@@ -461,7 +461,7 @@ function MealFormFields({
       <p className="text-[11px] text-gray-400 -mt-2">Max 999.9 g each. Numbers only, up to 1 decimal place.</p>
 
       <div>
-        <label className="text-xs font-semibold text-gray-500 mb-1 block">Total Calories (auto-computed)</label>
+        <label className="text-xs font-semibold text-gray-500 mb-1 block">Total Calories</label>
         <div
           className={`w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-between ${
             submitted && err.zeroCalories ? 'border border-red-400 bg-red-50 text-red-500' : 'bg-gray-50 border border-gray-100 text-gray-700'
